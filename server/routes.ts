@@ -11,12 +11,316 @@ const count = async (table: string, filter?: (query: any) => any) => { let query
 const authToken = (req: Request) => req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7).trim() : req.cookies?.admin_session;
 const relation = <T>(value: T | T[] | null | undefined): T | undefined => Array.isArray(value) ? value[0] : value || undefined;
 
-export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> { try { const token = authToken(req); if (!token) { res.status(401).json({ error: 'Unauthorized: Admin authentication token required' }); return; } const result = await supabase.from('admin_sessions').select('token,expires_at').eq('token', token).maybeSingle(); if (result.error) throw result.error; if (!result.data) { res.status(401).json({ error: 'Unauthorized: Invalid or expired session' }); return; } if (Date.now() > Number(result.data.expires_at)) { await supabase.from('admin_sessions').delete().eq('token', token); res.status(401).json({ error: 'Unauthorized: Session expired, please login again' }); return; } (req as any).adminToken = token; next(); } catch (error) { fail(res, error); } }
+async function requireAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const authHeader = req.headers.authorization;
 
-apiRouter.post('/admin/login', async (req, res) => { try { const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.ip || '127.0.0.1'; const attempt = await supabase.from('login_attempts').select('attempts,last_attempt').eq('ip', ip).maybeSingle(); if (attempt.error) throw attempt.error; if (attempt.data && attempt.data.attempts >= 5 && Date.now() - Number(attempt.data.last_attempt) < 600000) { res.status(429).json({ error: `Too many failed login attempts. Please wait ${Math.ceil((600000 - Date.now() + Number(attempt.data.last_attempt)) / 1000)} seconds before trying again.` }); return; } const { password } = req.body; if (!password || typeof password !== 'string') { res.status(400).json({ error: 'Password is required' }); return; } const record = await supabase.from('admin_auth').select('password_hash,salt').eq('id', 'admin_root').maybeSingle(); if (record.error) throw record.error; if (!record.data) { res.status(500).json({ error: 'Server authentication uninitialized' }); return; } const valid = verifyPassword(password, record.data.password_hash, record.data.salt); if (!valid) { await supabase.from('login_attempts').upsert({ ip, attempts: (attempt.data?.attempts || 0) + 1, last_attempt: Date.now() }); res.status(401).json({ error: 'Invalid admin password' }); return; } await supabase.from('login_attempts').delete().eq('ip', ip); const token = crypto.randomBytes(32).toString('hex'); const expiresAt = Date.now() + 86400000; const session = await supabase.from('admin_sessions').insert({ token, created_at: new Date().toISOString(), expires_at: expiresAt }); if (session.error) throw session.error; await audit('ADMIN_LOGIN_SUCCESS', 'admin', { ip }); res.cookie('admin_session', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 86400000 }); res.json({ success: true, token, expiresAt }); } catch (error) { fail(res, error); } });
-apiRouter.post('/admin/logout', async (req, res) => { try { const token = authToken(req); if (token) { const result = await supabase.from('admin_sessions').delete().eq('token', token); if (result.error) throw result.error; } res.clearCookie('admin_session'); res.json({ success: true, message: 'Logged out successfully' }); } catch (error) { fail(res, error); } });
-apiRouter.get('/admin/me', requireAdmin, (_req, res) => res.json({ authenticated: true, user: 'admin' }));
-apiRouter.post('/admin/change-password', requireAdmin, async (req, res) => { try { const { currentPassword, newPassword } = req.body; if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) { res.status(400).json({ error: 'New password must be at least 6 characters long' }); return; } const record = await supabase.from('admin_auth').select('password_hash,salt').eq('id', 'admin_root').single(); if (record.error) throw record.error; if (!verifyPassword(currentPassword, record.data.password_hash, record.data.salt)) { res.status(400).json({ error: 'Current password does not match' }); return; } const next = hashPassword(newPassword); const result = await supabase.from('admin_auth').update({ password_hash: next.hash, salt: next.salt, updated_at: new Date().toISOString() }).eq('id', 'admin_root'); if (result.error) throw result.error; await audit('PASSWORD_CHANGED', 'admin', 'Admin password was updated successfully'); res.json({ success: true, message: 'Password updated successfully' }); } catch (error) { fail(res, error); } });
+    const token =
+      req.cookies?.admin_session ||
+      (authHeader?.startsWith('Bearer ')
+        ? authHeader.slice(7).trim()
+        : undefined);
+
+    if (!token) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const result = await supabase
+      .from('admin_sessions')
+      .select('token, expires_at')
+      .eq('token', token)
+      .maybeSingle();
+
+    if (result.error) {
+      console.error('Admin session lookup failed:', result.error);
+      res.status(500).json({ error: 'Internal server error' });
+      return;
+    }
+
+    if (!result.data) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const expiresAt = Number(result.data.expires_at);
+
+    if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) {
+      const deleteResult = await supabase
+        .from('admin_sessions')
+        .delete()
+        .eq('token', token);
+
+      if (deleteResult.error) {
+        console.error('Failed to delete expired session:', deleteResult.error);
+      }
+
+      res.clearCookie('admin_session', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+      });
+
+      res.status(401).json({ error: 'Session expired' });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    console.error('Admin authentication error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+apiRouter.post('/admin/login', async (req, res) => {
+  try {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const ip =
+      (typeof forwardedFor === 'string'
+        ? forwardedFor.split(',')[0].trim()
+        : undefined) ||
+      req.ip ||
+      '127.0.0.1';
+
+    const attempt = await supabase
+      .from('login_attempts')
+      .select('attempts,last_attempt')
+      .eq('ip', ip)
+      .maybeSingle();
+
+    if (attempt.error) throw attempt.error;
+
+    const attempts = Number(attempt.data?.attempts ?? 0);
+    const lastAttempt = Number(attempt.data?.last_attempt ?? 0);
+    const lockoutDuration = 10 * 60 * 1000;
+
+    if (
+      attempts >= 5 &&
+      Date.now() - lastAttempt < lockoutDuration
+    ) {
+      const remainingSeconds = Math.ceil(
+        (lockoutDuration - (Date.now() - lastAttempt)) / 1000
+      );
+
+      res.status(429).json({
+        error: `Too many failed login attempts. Please wait ${remainingSeconds} seconds before trying again.`,
+      });
+      return;
+    }
+
+    const { password } = req.body;
+
+    if (!password || typeof password !== 'string') {
+      res.status(400).json({ error: 'Password is required' });
+      return;
+    }
+
+    const record = await supabase
+      .from('admin_auth')
+      .select('password_hash,salt')
+      .eq('id', 'admin_root')
+      .maybeSingle();
+
+    if (record.error) throw record.error;
+
+    if (!record.data) {
+      res.status(500).json({
+        error: 'Server authentication uninitialized',
+      });
+      return;
+    }
+
+    const valid = verifyPassword(
+      password,
+      record.data.password_hash,
+      record.data.salt
+    );
+
+    if (!valid) {
+      const attemptResult = await supabase
+        .from('login_attempts')
+        .upsert({
+          ip,
+          attempts: attempts + 1,
+          last_attempt: Date.now(),
+        });
+
+      if (attemptResult.error) {
+        console.error(
+          'Failed to update login attempts:',
+          attemptResult.error
+        );
+      }
+
+      res.status(401).json({ error: 'Invalid admin password' });
+      return;
+    }
+
+    const resetAttempts = await supabase
+      .from('login_attempts')
+      .delete()
+      .eq('ip', ip);
+
+    if (resetAttempts.error) {
+      console.error(
+        'Failed to reset login attempts:',
+        resetAttempts.error
+      );
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+
+    const session = await supabase
+      .from('admin_sessions')
+      .insert({
+        token,
+        created_at: new Date().toISOString(),
+        expires_at: expiresAt,
+      });
+
+    if (session.error) throw session.error;
+
+    await audit('ADMIN_LOGIN_SUCCESS', 'admin', { ip });
+
+    res.cookie('admin_session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    // The token stays in the HttpOnly cookie and is not exposed to JavaScript.
+    res.json({
+      success: true,
+      expiresAt,
+    });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    fail(res, error);
+  }
+});
+
+apiRouter.post('/admin/logout', async (req, res) => {
+  try {
+    const token = authToken(req);
+
+    if (token) {
+      const result = await supabase
+        .from('admin_sessions')
+        .delete()
+        .eq('token', token);
+
+      if (result.error) throw result.error;
+    }
+
+    res.clearCookie('admin_session', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  } catch (error) {
+    console.error('Admin logout error:', error);
+    fail(res, error);
+  }
+});
+
+apiRouter.get('/admin/me', requireAdmin, (_req, res) => {
+  res.json({
+    authenticated: true,
+    user: 'admin',
+  });
+});
+
+apiRouter.post('/admin/change-password', requireAdmin, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || typeof currentPassword !== 'string') {
+      res.status(400).json({ error: 'Current password is required' });
+      return;
+    }
+
+    if (!newPassword || typeof newPassword !== 'string') {
+      res.status(400).json({ error: 'New password is required' });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      res.status(400).json({
+        error: 'New password must be at least 6 characters long',
+      });
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      res.status(400).json({
+        error: 'New password must be different from the current password',
+      });
+      return;
+    }
+
+    const record = await supabase
+      .from('admin_auth')
+      .select('password_hash,salt')
+      .eq('id', 'admin_root')
+      .single();
+
+    if (record.error) throw record.error;
+
+    if (
+      !verifyPassword(
+        currentPassword,
+        record.data.password_hash,
+        record.data.salt
+      )
+    ) {
+      res.status(400).json({
+        error: 'Current password does not match',
+      });
+      return;
+    }
+
+    const next = hashPassword(newPassword);
+
+    const result = await supabase
+      .from('admin_auth')
+      .update({
+        password_hash: next.hash,
+        salt: next.salt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 'admin_root');
+
+    if (result.error) throw result.error;
+
+    await audit(
+      'PASSWORD_CHANGED',
+      'admin',
+      'Admin password was updated successfully'
+    );
+
+    res.json({
+      success: true,
+      message: 'Password updated successfully',
+    });
+  } catch (error) {
+    console.error('Admin password change error:', error);
+    fail(res, error);
+  }
+});
 
 apiRouter.get('/settings', async (_req, res) => { try { res.json({ settings: await settings() }); } catch (error) { fail(res, error); } });
 apiRouter.get('/tournament', async (_req, res) => { try { const tournamentSettings = await settings(); const [totalTeams, totalMatches, completedMatches, resultRows] = await Promise.all([count('teams'), count('matches'), count('matches', q => q.in('status', ['Completed', 'Locked'])), supabase.from('match_results').select('kills,placement')]); if (resultRows.error) throw resultRows.error; const results = resultRows.data || []; const next = await supabase.from('matches').select('*').eq('status', 'Scheduled').order('match_number').limit(1).maybeSingle(); const recent = await supabase.from('matches').select('*').in('status', ['Completed', 'Locked']).order('match_number', { ascending: false }).limit(1).maybeSingle(); res.json({ settings: tournamentSettings, stats: { totalTeams, completedMatches, totalMatches, totalKills: results.reduce((sum, row) => sum + row.kills, 0), totalChickenDinners: results.filter(row => row.placement === 1).length, remainingMatches: Math.max(0, totalMatches - completedMatches) }, nextMatch: next.data, recentMatch: recent.data }); } catch (error) { fail(res, error); } });
