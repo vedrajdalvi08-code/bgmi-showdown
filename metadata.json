@@ -1,0 +1,6 @@
+{
+  "name": "BGMI SHOWDOWN",
+  "description": "Battlegrounds Mobile India Esports Tournament Management System with live leaderboards, scoring engine, room match results, and secure admin control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
