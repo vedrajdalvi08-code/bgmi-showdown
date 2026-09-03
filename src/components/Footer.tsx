@@ -5,39 +5,9 @@ import { Shield, Trophy, Flame, Swords, Lock, Heart, Award } from 'lucide-react'
 export const Footer: React.FC = () => {
   const { settings, setActiveTab, isAdmin } = useTournament();
 
-  const sponsors = [
-    { name: 'KRAFTON ESPORTS', tag: 'OFFICIAL RECOGNIZED' },
-    { name: 'RED BULL', tag: 'ENERGY PARTNER' },
-    { name: 'ROG PHONE', tag: 'OFFICIAL DEVICE' },
-    { name: 'HYPERX', tag: 'AUDIO GEAR' },
-    { name: 'DISCORD', tag: 'COMMUNITY HUB' }
-  ];
-
   return (
     <footer className="relative mt-24 bg-white dark:bg-[#07040e] border-t-4 border-black pt-12 pb-8 overflow-hidden z-10 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Sponsors Bar */}
-        <div className="mb-12 pb-10 border-b-2 border-black">
-          <p className="text-center font-headline text-xs tracking-widest text-[#FF6FB5] mb-6 uppercase font-bold">
-            // OFFICIAL TOURNAMENT BROADCAST & HARDWARE PARTNERS //
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-            {sponsors.map((sp, idx) => (
-              <div
-                key={idx}
-                className="bg-[#FFF5F0] dark:bg-[#150A24] border-2 border-black shadow-[2px_2px_0px_0px_#000] p-3 text-center transition-all group hover:-translate-y-0.5"
-              >
-                <div className="font-headline text-lg text-zinc-900 dark:text-white group-hover:text-[#FF6FB5] transition-colors">
-                  {sp.name}
-                </div>
-                <div className="text-[10px] font-mono text-[#00E5FF] dark:text-[#00E5FF] font-bold tracking-wider">
-                  {sp.tag}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Main Footer Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           {/* Col 1: Brand & Tagline */}
@@ -119,7 +89,7 @@ export const Footer: React.FC = () => {
             </p>
             <button
               onClick={() => setActiveTab(isAdmin ? 'admin' : 'admin-login')}
-              className="w-full py-2.5 px-3 bg-[#FF6FB5] hover:bg-black text-white font-headline text-base tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all border-2 border-black shadow-[3px_3px_0px_0px_#000]"
+              className="w-full py-2.5 px-3 bg-[#FF6FB5] hover:bg-black text-white font-headline text-base tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all border-2 border-black shadow-[2px_2px_0px_0px_#000]"
             >
               <Lock className="w-4 h-4 text-white" />
               {isAdmin ? 'MISSION CONTROL ACTIVE' : 'ADMIN LOGIN (DESKTOP)'}
