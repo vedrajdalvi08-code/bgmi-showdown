@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTournament } from '../context/TournamentContext';
-import { Trophy, Swords, Shield, Sparkles } from 'lucide-react';
+import { Sparkles, Shield, Swords, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { LeaderboardRow, Match } from '../types';
 import { safeFetchJson } from '../utils/api';
@@ -155,7 +155,7 @@ export const FinalsPage: React.FC = () => {
             </h2>
           </div>
           <span className="text-xs font-mono font-bold text-zinc-500">
-            TOP 8 GROUP A + TOP 8 GROUP B
+            TOP QUALIFIERS FROM EVERY GROUP
           </span>
         </div>
 

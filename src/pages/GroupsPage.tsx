@@ -16,6 +16,9 @@ export const GroupsPage: React.FC = () => {
       if (isMounted) {
         if (data?.groups) {
           setGroups(data.groups);
+          if (!data.groups.some(group => group.id === selectedGroup)) {
+            setSelectedGroup(data.groups[0]?.id || 'grp_a');
+          }
         }
         setLoading(false);
       }
@@ -44,7 +47,7 @@ export const GroupsPage: React.FC = () => {
           GROUP STAGE BRACKETS
         </h1>
         <p className="text-zinc-700 dark:text-zinc-300 text-sm font-display mt-1">
-          48 squads split across 2 groups with Erangel, Miramar, Sanhok, and Rondo rotations. Top 8 advance to the Grand Finals.
+          Squads are automatically balanced into groups with Erangel, Miramar, Sanhok, and Rondo rotations. Top 8 advance to the Grand Finals.
         </p>
       </div>
 
@@ -69,7 +72,7 @@ export const GroupsPage: React.FC = () => {
       <div className="p-4 bg-white dark:bg-[#150A24] border-3 border-black shadow-[4px_4px_0px_0px_#000] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="font-headline text-2xl text-zinc-950 dark:text-white tracking-wide">
-            {currentGroup?.name || 'GROUP A'} // 24 COMPETING SQUADS
+            {currentGroup?.name || 'GROUP A'} // {currentGroup?.teams?.length || 0} COMPETING SQUADS
           </h2>
           <p className="text-xs font-mono text-zinc-600 dark:text-zinc-400">
             MAP ROTATION: ERANGEL, MIRAMAR, SANHOK, RONDO • TOP 8 ADVANCE TO FINALS

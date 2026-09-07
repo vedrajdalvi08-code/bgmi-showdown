@@ -1,0 +1,54 @@
+declare module 'lucide-react' {
+  import * as React from 'react';
+
+  export type LucideIcon = React.ComponentType<React.SVGProps<SVGSVGElement>>;
+
+  export const AlertTriangle: LucideIcon;
+  export const AlertCircle: LucideIcon;
+  export const ArrowLeft: LucideIcon;
+  export const ArrowRight: LucideIcon;
+  export const Award: LucideIcon;
+  export const Check: LucideIcon;
+  export const CheckCircle2: LucideIcon;
+  export const ChevronRight: LucideIcon;
+  export const ClipboardList: LucideIcon;
+  export const Clock: LucideIcon;
+  export const Crosshair: LucideIcon;
+  export const Edit2: LucideIcon;
+  export const ExternalLink: LucideIcon;
+  export const FileText: LucideIcon;
+  export const Flame: LucideIcon;
+  export const Heart: LucideIcon;
+  export const HelpCircle: LucideIcon;
+  export const Key: LucideIcon;
+  export const Lock: LucideIcon;
+  export const LayoutDashboard: LucideIcon;
+  export const LogOut: LucideIcon;
+  export const MapPin: LucideIcon;
+  export const Menu: LucideIcon;
+  export const Minus: LucideIcon;
+  export const Monitor: LucideIcon;
+  export const Moon: LucideIcon;
+  export const Play: LucideIcon;
+  export const Plus: LucideIcon;
+  export const Radio: LucideIcon;
+  export const Save: LucideIcon;
+  export const Scale: LucideIcon;
+  export const Search: LucideIcon;
+  export const Settings: LucideIcon;
+  export const Shield: LucideIcon;
+  export const ShieldAlert: LucideIcon;
+  export const Sliders: LucideIcon;
+  export const Sparkles: LucideIcon;
+  export const Swords: LucideIcon;
+  export const Sun: LucideIcon;
+  export const Terminal: LucideIcon;
+  export const Trash2: LucideIcon;
+  export const Trophy: LucideIcon;
+  export const Unlock: LucideIcon;
+  export const Upload: LucideIcon;
+  export const UserCheck: LucideIcon;
+  export const Users: LucideIcon;
+  export const X: LucideIcon;
+  export const Zap: LucideIcon;
+}

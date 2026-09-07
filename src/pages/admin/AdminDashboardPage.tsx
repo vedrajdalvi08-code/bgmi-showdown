@@ -14,11 +14,14 @@ import {
 } from 'lucide-react';
 import { AuditLog } from '../../types';
 import { safeFetchJson } from '../../utils/api';
+import { getGroupOptions } from '../../utils/groups';
 
 export const AdminDashboardPage: React.FC = () => {
-  const { adminToken, setActiveTab } = useTournament();
+  const { settings, adminToken, fetchLeaderboard, setActiveTab } = useTournament();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [groupLeaders, setGroupLeaders] = useState<Array<{ name: string; leader: any }>>([]);
+  const groupOptions = getGroupOptions(settings?.group_names);
 
   const fetchDashboardData = () => {
     if (!adminToken) return;
@@ -35,8 +38,12 @@ export const AdminDashboardPage: React.FC = () => {
     fetchDashboardData();
   }, [adminToken]);
 
+  useEffect(() => {
+    Promise.all(groupOptions.map(group => fetchLeaderboard('group', group.id)))
+      .then(results => setGroupLeaders(results.map((result, index) => ({ name: groupOptions[index].name, leader: result.leaderboard[0] || null }))));
+  }, [fetchLeaderboard, settings?.group_names]);
+
   const stats = data?.stats;
-  const leaders = data?.leaders;
   const auditLogs: AuditLog[] = data?.auditLogs || [];
 
   return (
@@ -72,7 +79,7 @@ export const AdminDashboardPage: React.FC = () => {
             {stats?.totalTeams || 0}
           </div>
           <div className="text-[11px] font-mono text-zinc-500 mt-1">
-            GRP A: {stats?.groupATeams || 0} • GRP B: {stats?.groupBTeams || 0}
+            {groupOptions.length} AUTOMATIC GROUPS • MAX {settings?.teams_per_group || 25} / GROUP
           </div>
         </div>
 
@@ -111,80 +118,45 @@ export const AdminDashboardPage: React.FC = () => {
             {stats?.qualifiedCount || 0}
           </div>
           <div className="text-[11px] font-mono text-zinc-500 mt-1">
-            TARGET: 16 SQUADS
+            TARGET: {(settings?.qualifiers_per_group || 8) * groupOptions.length} SQUADS
           </div>
         </div>
       </div>
 
       {/* Leaders in Groups */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Group A Leader */}
-        <div className="bg-[#120726] comic-border-cyan p-5 space-y-3">
+        {groupLeaders.map((group, index) => <div key={group.name} className={`bg-[#120726] ${index % 2 === 0 ? 'comic-border-cyan' : 'comic-border'} p-5 space-y-3`}>
           <div className="flex items-center justify-between">
-            <span className="font-marker text-xs text-[#00f5ff] uppercase tracking-wider">
-              GROUP A // CURRENT SEED #1
+            <span className={`font-marker text-xs ${index % 2 === 0 ? 'text-[#00f5ff]' : 'text-[#ff007f]'} uppercase tracking-wider`}>
+              {group.name.toUpperCase()} // CURRENT SEED #1
             </span>
             <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs font-mono">
               QUALIFIED
             </span>
           </div>
-          {leaders?.groupA ? (
+          {group.leader ? (
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-headline text-2xl text-white">
-                  {leaders.groupA.team_name}
+                  {group.leader.team_name}
                 </h3>
                 <p className="text-xs font-mono text-zinc-400">
-                  TAG: {leaders.groupA.team_tag} • {leaders.groupA.total_kills} KILLS
+                  TAG: {group.leader.team_tag} • {group.leader.total_kills} KILLS
                 </p>
               </div>
               <div className="text-right">
                 <div className="font-headline text-3xl text-[#ffe600]">
-                  {leaders.groupA.total_points} PTS
+                  {group.leader.total_points} PTS
                 </div>
                 <div className="text-[10px] font-mono text-zinc-500">
-                  MATCHES: {leaders.groupA.matches_played}
+                  MATCHES: {group.leader.matches_played}
                 </div>
               </div>
             </div>
           ) : (
-            <p className="text-xs font-display text-zinc-500">No match results yet for Group A</p>
+            <p className="text-xs font-display text-zinc-500">No match results yet for {group.name}</p>
           )}
-        </div>
-
-        {/* Group B Leader */}
-        <div className="bg-[#120726] comic-border p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="font-marker text-xs text-[#ff007f] uppercase tracking-wider">
-              GROUP B // CURRENT SEED #1
-            </span>
-            <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs font-mono">
-              QUALIFIED
-            </span>
-          </div>
-          {leaders?.groupB ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-headline text-2xl text-white">
-                  {leaders.groupB.team_name}
-                </h3>
-                <p className="text-xs font-mono text-zinc-400">
-                  TAG: {leaders.groupB.team_tag} • {leaders.groupB.total_kills} KILLS
-                </p>
-              </div>
-              <div className="text-right">
-                <div className="font-headline text-3xl text-[#ffe600]">
-                  {leaders.groupB.total_points} PTS
-                </div>
-                <div className="text-[10px] font-mono text-zinc-500">
-                  MATCHES: {leaders.groupB.matches_played}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs font-display text-zinc-500">No match results yet for Group B</p>
-          )}
-        </div>
+        </div>)}
       </div>
 
       {/* Quick Ops Navigation Grid */}

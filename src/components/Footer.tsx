@@ -26,7 +26,7 @@ export const Footer: React.FC = () => {
             </p>
             <div className="inline-flex items-center gap-2 text-xs font-mono text-black dark:text-[#FFD54F] font-bold px-2 py-1 bg-[#FFD54F] dark:bg-[#251540] border border-black shadow-[1px_1px_0px_0px_#000]">
               <Award className="w-4 h-4" />
-              <span>AUTHENTIC ESPORTS SCORING ENGINE // KRAFTON STANDARD</span>
+              <span>AUTHENTIC ESPORTS SCORING ENGINE</span>
             </div>
           </div>
 
@@ -103,7 +103,7 @@ export const Footer: React.FC = () => {
             © {new Date().getFullYear()} {settings?.name || 'BGMI SHOWDOWN'}. ALL ESPORTS RIGHTS RESERVED.
           </div>
           <div className="flex items-center gap-1 text-zinc-800 dark:text-zinc-300 font-bold">
-            BGMI ESPORTS TOURNAMENT PLATFORM // VICE THEME
+            A BGMI ESPORTS TOURNAMENT PRESENTED BY <span className="text-[#9a6fff]">ITSA</span>
           </div>
         </div>
       </div>

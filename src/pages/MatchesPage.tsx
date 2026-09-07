@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useTournament } from '../context/TournamentContext';
 import { Swords, Trophy, Clock, Lock, MapPin, Radio, Sparkles } from 'lucide-react';
+import { getGroupOptions } from '../utils/groups';
 
 export const MatchesPage: React.FC = () => {
-  const { matches, setSelectedMatchId, isAdmin, setActiveTab } = useTournament();
+  const { matches, settings, setSelectedMatchId, isAdmin, setActiveTab } = useTournament();
+  const groupOptions = getGroupOptions(settings?.group_names);
   const [stageFilter, setStageFilter] = useState<'all' | 'group' | 'finals'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'Scheduled' | 'Completed' | 'Locked'>('all');
   const [mapFilter, setMapFilter] = useState<'all' | 'Erangel' | 'Miramar' | 'Sanhok' | 'Vikendi' | 'Rondo'>('all');
@@ -252,7 +254,7 @@ export const MatchesPage: React.FC = () => {
                         {match.map}
                       </span>
                       <span className="px-2.5 py-0.5 bg-zinc-100 dark:bg-black/40 text-zinc-900 dark:text-zinc-200 text-xs font-headline tracking-wider border-2 border-black">
-                        {match.stage === 'group' ? (match.group_id === 'grp_a' ? 'GROUP A' : 'GROUP B') : 'GRAND FINALS'}
+                        {match.stage === 'group' ? groupOptions.find(group => group.id === match.group_id)?.name.toUpperCase() || 'UNASSIGNED' : 'GRAND FINALS'}
                       </span>
                       {match.is_locked ? (
                         <span className="px-2.5 py-0.5 bg-[#00E676] text-black text-xs font-headline font-bold border-2 border-black shadow-[1px_1px_0px_0px_#000] flex items-center gap-1">
@@ -279,7 +281,7 @@ export const MatchesPage: React.FC = () => {
                         {match.scheduled_time || 'SCHEDULED ROTATION'}
                       </span>
                       <span>•</span>
-                      <span>24 SQUADS PER ROOM LOBBY</span>
+                      <span>{settings?.teams_per_group || 25} SQUADS PER ROOM LOBBY</span>
                     </div>
                   </div>
 

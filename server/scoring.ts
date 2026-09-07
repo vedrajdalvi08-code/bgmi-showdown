@@ -22,6 +22,12 @@ export async function calculateMatchPoints(placement: number, kills: number) {
 
 export interface TeamLeaderboardRow { rank: number; team_id: string; team_name: string; team_tag: string; team_logo: string; group_id: string | null; group_name?: string; matches_played: number; total_kills: number; placement_points: number; total_points: number; match_breakdown: Record<string, number>; best_placement: number; recent_match_points: number; chicken_dinners: number; qualification_status: 'QUALIFIED' | 'ON THE BUBBLE' | 'ELIMINATED' | 'IN HUNT' | 'CHAMPION' | 'PODIUM'; }
 
+async function getGroupIds(): Promise<string[]> {
+  const { data, error } = await supabase.from('groups').select('id').order('display_order');
+  if (error) throw error;
+  return (data || []).map(group => group.id);
+}
+
 export async function computeLeaderboard(stage: 'group' | 'finals', groupId?: string) {
   const rules = await getScoringRules();
   const setting = await supabase.from('tournament_settings').select('value').eq('key', 'qualifiers_per_group').maybeSingle();
@@ -40,8 +46,9 @@ export async function computeLeaderboard(stage: 'group' | 'finals', groupId?: st
   if (teamResponse.error) throw teamResponse.error;
   let teams = teamResponse.data || [];
   if (stage === 'finals' && teams.length === 0) {
-    const [a, b] = await Promise.all([computeLeaderboard('group', 'grp_a'), computeLeaderboard('group', 'grp_b')]);
-    const ids = [...a.leaderboard.slice(0, qualifiersCount), ...b.leaderboard.slice(0, qualifiersCount)].map(row => row.team_id);
+    const groupIds = await getGroupIds();
+    const groupLeaderboards = await Promise.all(groupIds.map(groupId => computeLeaderboard('group', groupId)));
+    const ids = groupLeaderboards.flatMap(group => group.leaderboard.slice(0, qualifiersCount)).map(row => row.team_id);
     if (ids.length) { const response = await supabase.from('teams').select('id,name,tag,logo_url,group_id,status').in('id', ids); if (response.error) throw response.error; teams = response.data || []; }
   }
   const resultResponse = matches.length ? await supabase.from('match_results').select('match_id,team_id,placement,kills,total_points').in('match_id', matches.map(m => m.id)) : { data: [], error: null };

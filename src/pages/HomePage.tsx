@@ -1,28 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import { useTournament } from '../context/TournamentContext';
 import { Trophy, Crosshair, Flame, Swords, Users, Radio, ChevronRight, Clock, Award, Sparkles } from 'lucide-react';
+import { safeFetchJson } from '../utils/api';
 
 export const HomePage: React.FC = () => {
   const { settings, stats, nextMatch, recentMatch, leaderboard, setActiveTab, setSelectedMatchId } = useTournament();
 
-  // Countdown timer to next match
-  const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number }>({
-    hours: 2,
-    minutes: 45,
-    seconds: 30
-  });
+  const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
+  const [recentWinner, setRecentWinner] = useState<{ team_name: string; kills: number; total_points: number } | null>(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
-        if (prev.minutes > 0) return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
-        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        return prev;
+    if (!recentMatch?.id) {
+      setRecentWinner(null);
+      return;
+    }
+    safeFetchJson<{ winner?: { team_name: string; kills: number; total_points: number } }>(`/api/matches/${recentMatch.id}`, undefined, 1, 300)
+      .then(data => setRecentWinner(data?.winner || null));
+  }, [recentMatch?.id]);
+
+  useEffect(() => {
+    if (!nextMatch?.scheduled_time) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const scheduledTime = nextMatch.scheduled_time.trim().replace(
+      /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})(?:\s+IST)?$/i,
+      '$1T$2:00+05:30'
+    );
+    const targetTime = new Date(scheduledTime).getTime();
+
+    if (!Number.isFinite(targetTime)) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const remainingSeconds = Math.max(0, Math.floor((targetTime - Date.now()) / 1000));
+      setTimeLeft({
+        hours: Math.floor(remainingSeconds / 3600),
+        minutes: Math.floor((remainingSeconds % 3600) / 60),
+        seconds: remainingSeconds % 60
       });
+    };
+
+    updateCountdown();
+    const timer = setInterval(() => {
+      updateCountdown();
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [nextMatch?.scheduled_time]);
 
   const topFive = leaderboard.slice(0, 5);
 
@@ -35,7 +62,7 @@ export const HomePage: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#FF6FB5] text-white border-2 border-black shadow-[3px_3px_0px_0px_#000] select-none">
             <Radio className="w-4 h-4 text-[#FFD54F] animate-pulse" />
             <span className="font-headline text-xs sm:text-sm tracking-widest uppercase font-bold">
-              BGMI ESPORTS NATIONAL CHAMPIONSHIP 2026
+              INFORMATION TECHNOLOGY STUDENT ASSOCIATION PRESENTS
             </span>
           </div>
 
@@ -55,17 +82,17 @@ export const HomePage: React.FC = () => {
           </p>
 
           {/* Action CTAs */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 pt-2 max-w-md sm:max-w-none mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch gap-3 sm:gap-4 pt-2 w-full max-w-4xl mx-auto">
             <button
               onClick={() => setActiveTab('leaderboard')}
-              className="w-full sm:w-auto px-8 py-3.5 bg-[#FF6FB5] hover:bg-[#FF85C0] text-white font-headline text-lg sm:text-xl tracking-wider border-3 border-black shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer transition-all"
+              className="min-w-0 w-full px-5 sm:px-8 py-3.5 bg-[#FF6FB5] hover:bg-[#FF85C0] text-white font-headline text-lg sm:text-xl tracking-wider text-center whitespace-normal wrap-break-word border-3 border-black shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer transition-all"
             >
               <Trophy className="w-5 h-5 text-[#FFD54F]" />
               VIEW LIVE LEADERBOARD
             </button>
             <button
               onClick={() => setActiveTab('matches')}
-              className="w-full sm:w-auto px-6 py-3.5 bg-[#00E5FF] hover:bg-[#3BF6FF] text-black font-headline text-lg sm:text-xl tracking-wider border-3 border-black shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer transition-all"
+              className="min-w-0 w-full px-5 sm:px-6 py-3.5 bg-[#00E5FF] hover:bg-[#3BF6FF] text-black font-headline text-lg sm:text-xl tracking-wider text-center whitespace-normal wrap-break-word border-3 border-black shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#000] hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer transition-all"
             >
               <Swords className="w-5 h-5 text-black" />
               MATCHES & MAP ROTATION
@@ -74,7 +101,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* METRICS & CHICKEN DINNER STRIP */}
+      {/* METRICS & TOURNAMENT CAPACITY STRIP */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {/* Active Squads */}
@@ -84,25 +111,25 @@ export const HomePage: React.FC = () => {
               <Users className="w-4 h-4 text-[#FF6FB5]" />
             </div>
             <div className="font-headline text-3xl sm:text-4xl text-zinc-950 dark:text-white tracking-wider">
-              {stats?.totalTeams || 48}
+              {settings?.max_teams || stats?.totalTeams || 48}
             </div>
             <div className="text-[11px] font-mono text-[#00E5FF] font-bold mt-1">
-              GROUPS A & B
+              {settings?.num_groups || 2} AUTOMATIC GROUP{(settings?.num_groups || 2) === 1 ? '' : 'S'}
             </div>
           </div>
 
-          {/* Chicken Dinners Count (Prominently Highlighted!) */}
-          <div className="bg-[#FFF9C4] dark:bg-[#251540] border-3 border-black shadow-[4px_4px_0px_0px_#FF6FB5] p-4 sm:p-5 relative transform hover:-translate-y-0.5 transition-transform">
-            <div className="flex items-center justify-between text-amber-900 dark:text-[#FFD54F] text-xs font-headline font-bold mb-1">
-              <span>CHICKEN DINNERS</span>
-              <Trophy className="w-4 h-4 text-[#FF6FB5]" />
+          {/* Group Capacity */}
+          <div className="bg-white dark:bg-[#1A0F2E] border-3 border-black shadow-[4px_4px_0px_0px_#000] p-4 sm:p-5 relative">
+             <div className="flex items-center justify-between text-zinc-600 dark:text-zinc-400 text-xs font-headline font-bold mb-1">
+              <span>TOTAL NO OF MATCHES</span>
+              <Crosshair className="w-4 h-4 text-[#0d0c0d]" />
             </div>
             <div className="font-headline text-3xl sm:text-4xl text-zinc-950 dark:text-[#FFD54F] tracking-wider flex items-baseline gap-1.5">
-              <span>{stats?.totalChickenDinners ?? 3}</span>
-              <span className="text-xl">🍗</span>
+              <span>5</span>
+              <span className="text-xl">MATCHES</span>
             </div>
             <div className="text-[11px] font-headline font-bold text-[#FF6FB5] mt-1 uppercase">
-              WWCDs CLAIMED
+              MAXIMUM MATCHES PER GROUP
             </div>
           </div>
 
@@ -141,7 +168,7 @@ export const HomePage: React.FC = () => {
               <Award className="w-4 h-4 text-[#FFD54F]" />
             </div>
             <div className="font-headline text-3xl sm:text-4xl text-zinc-950 dark:text-[#FFD54F] tracking-wider">
-              ₹50L
+              ₹2500
             </div>
             <div className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 mt-1">
               + MVP BONUSES
@@ -163,29 +190,35 @@ export const HomePage: React.FC = () => {
                 </span>
               </div>
               <span className="px-3 py-1 bg-[#00E5FF] text-black font-headline text-xs font-bold border-2 border-black shadow-[2px_2px_0px_0px_#000]">
-                {nextMatch?.map || 'ERANGEL'}
+                {nextMatch?.map || 'NO MATCH SCHEDULED'}
               </span>
             </div>
 
             <h2 className="font-headline text-3xl sm:text-4xl text-zinc-950 dark:text-white tracking-wide mb-2">
-              {nextMatch?.name || 'GROUP A // MATCH 2 — ERANGEL'}
+              {nextMatch?.name || 'NO UPCOMING MATCH'}
             </h2>
             <p className="text-zinc-600 dark:text-zinc-400 text-sm font-display mb-6">
               Official custom room lobby opens shortly. Spectator relays and anti-cheat telemetry active.
             </p>
 
             {/* Countdown timer display */}
-            <div className="bg-[#FFF5F0] dark:bg-[#0B0416] p-4 border-2 border-black shadow-[3px_3px_0px_0px_#000] flex items-center justify-between mb-6">
+              <div className="bg-[#FFF5F0] dark:bg-[#0B0416] p-4 border-2 border-black shadow-[3px_3px_0px_0px_#000] flex items-center justify-between mb-6">
               <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-300 font-headline text-sm font-bold">
                 <Clock className="w-4 h-4 text-[#FF6FB5]" />
                 <span>DROP COUNTDOWN:</span>
               </div>
               <div className="flex items-center gap-2 sm:gap-3 font-headline text-2xl sm:text-3xl text-zinc-950 dark:text-[#FFD54F] tracking-widest font-bold">
-                <span>{String(timeLeft.hours).padStart(2, '0')}H</span>
-                <span className="text-zinc-400">:</span>
-                <span>{String(timeLeft.minutes).padStart(2, '0')}M</span>
-                <span className="text-zinc-400">:</span>
-                <span>{String(timeLeft.seconds).padStart(2, '0')}S</span>
+                {timeLeft ? (
+                  <>
+                    <span>{String(timeLeft.hours).padStart(2, '0')}H</span>
+                    <span className="text-zinc-400">:</span>
+                    <span>{String(timeLeft.minutes).padStart(2, '0')}M</span>
+                    <span className="text-zinc-400">:</span>
+                    <span>{String(timeLeft.seconds).padStart(2, '0')}S</span>
+                  </>
+                ) : (
+                  <span className="text-lg">TIME UNAVAILABLE</span>
+                )}
               </div>
             </div>
 
@@ -211,20 +244,26 @@ export const HomePage: React.FC = () => {
               </div>
 
               <div className="font-headline text-3xl sm:text-4xl text-zinc-950 dark:text-white tracking-wide">
-                {recentMatch?.name || 'MATCH 1 — ERANGEL'}
+                {recentMatch?.name || 'NO VERIFIED RESULT'}
               </div>
 
               <div className="mt-4 p-4 bg-white dark:bg-[#150A24] border-2 border-black shadow-[3px_3px_0px_0px_#000] space-y-2">
                 <div className="text-xs font-headline font-bold text-zinc-500">WINNING SQUAD:</div>
-                <div className="font-headline text-2xl text-zinc-950 dark:text-[#FFD54F] tracking-wider flex items-center gap-2">
-                  <span>{recentMatch?.winner?.team_name || 'GODLIKE ESPORTS'}</span>
-                  <span className="text-xs font-mono font-bold px-2 py-0.5 bg-[#FF6FB5] text-white border border-black">
-                    WINNER
-                  </span>
-                </div>
-                <div className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300">
-                  {recentMatch?.winner?.kills || 14} FINISHES • {recentMatch?.winner?.total_points || 24} TOTAL POINTS
-                </div>
+                {recentWinner ? (
+                  <>
+                    <div className="font-headline text-2xl text-zinc-950 dark:text-[#FFD54F] tracking-wider flex items-center gap-2">
+                      <span>{recentWinner.team_name}</span>
+                      <span className="text-xs font-mono font-bold px-2 py-0.5 bg-[#FF6FB5] text-white border border-black">
+                        WINNER
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300">
+                      {recentWinner.kills} FINISHES • {recentWinner.total_points} TOTAL POINTS
+                    </div>
+                  </>
+                ) : (
+                  <div className="font-mono text-sm text-zinc-600 dark:text-zinc-400">No verified winner data available.</div>
+                )}
               </div>
             </div>
 
@@ -293,7 +332,7 @@ export const HomePage: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between text-xs font-mono text-zinc-600 dark:text-zinc-400 border-t border-black/10 dark:border-white/10 pt-2">
+                  <div className="flex items-center justify-between text-sm font-mono text-zinc-700 dark:text-zinc-300 border-t border-black/10 dark:border-white/10 pt-2">
                     <span className="px-2 py-0.5 bg-[#FFF9C4] dark:bg-[#251540] text-amber-900 dark:text-[#FFD54F] font-bold border border-black">
                       {row.chicken_dinners || 0} 🍗 WWCD
                     </span>
@@ -313,17 +352,17 @@ export const HomePage: React.FC = () => {
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#FFF5F0] dark:bg-[#1A0F2E] border-b-2 border-black text-xs font-headline tracking-widest text-zinc-900 dark:text-[#00E5FF]">
-                  <th className="py-3 px-4 text-center w-16">RANK</th>
-                  <th className="py-3 px-4">SQUAD</th>
-                  <th className="py-3 px-4 text-center bg-[#FFF9C4] dark:bg-[#251540] text-amber-900 dark:text-[#FFD54F] font-bold">
+                <tr className="bg-[#FFF5F0] dark:bg-[#1A0F2E] border-b-2 border-black text-sm sm:text-base font-headline font-bold tracking-widest text-zinc-950 dark:text-[#00E5FF]">
+                  <th className="py-4 px-4 text-center w-16 whitespace-nowrap">RANK</th>
+                  <th className="py-4 px-4 whitespace-nowrap">SQUAD</th>
+                  <th className="py-4 px-4 text-center bg-[#FFF9C4] dark:bg-[#251540] text-amber-900 dark:text-[#FFD54F] font-bold whitespace-nowrap">
                     🍗 WWCD (WINS)
                   </th>
-                  <th className="py-3 px-4 text-center">MATCHES</th>
-                  <th className="py-3 px-4 text-center">FINISHES</th>
-                  <th className="py-3 px-4 text-center text-[#FF6FB5]">PLACE PTS</th>
-                  <th className="py-3 px-4 text-center text-zinc-900 dark:text-[#FFD54F] font-bold">TOTAL PTS</th>
-                  <th className="py-3 px-4 text-center">STATUS</th>
+                  <th className="py-4 px-4 text-center whitespace-nowrap">MATCHES</th>
+                  <th className="py-4 px-4 text-center whitespace-nowrap">FINISHES</th>
+                  <th className="py-4 px-4 text-center text-[#FF6FB5] whitespace-nowrap">PLACE PTS</th>
+                  <th className="py-4 px-4 text-center text-zinc-950 dark:text-[#FFD54F] font-bold whitespace-nowrap">TOTAL PTS</th>
+                  <th className="py-4 px-4 text-center whitespace-nowrap">STATUS</th>
                 </tr>
               </thead>
               <tbody className="divide-y-2 divide-zinc-200 dark:divide-zinc-800 font-display text-sm">

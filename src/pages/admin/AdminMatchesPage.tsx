@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { Swords, Plus, Lock, Unlock, Edit2, Trash2, Clock, MapPin, X, AlertTriangle, ClipboardList } from 'lucide-react';
 import { Match } from '../../types';
+import { getGroupOptions } from '../../utils/groups';
 
 export const AdminMatchesPage: React.FC = () => {
-  const { matches, adminToken, showToast, refreshAll, setActiveTab, setSelectedMatchId } = useTournament();
+  const { matches, settings, adminToken, showToast, refreshAll, setActiveTab, setSelectedMatchId } = useTournament();
+  const groupOptions = getGroupOptions(settings?.group_names);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
@@ -173,7 +175,7 @@ export const AdminMatchesPage: React.FC = () => {
             setMatchNumber(matches.length + 1);
             setMatchName(`Match ${matches.length + 1}`);
             setStage('group');
-            setGroupId('grp_a');
+            setGroupId(groupOptions[0]?.id || 'grp_a');
             setMap('Erangel');
             setScheduledTime('2026-09-10 16:00 IST');
             setShowAddModal(true);
@@ -204,7 +206,7 @@ export const AdminMatchesPage: React.FC = () => {
                   {m.map}
                 </span>
                 <span className="text-xs font-mono px-2 py-0.5 bg-[#170a2f] text-[#00f5ff]">
-                  {m.stage === 'group' ? (m.group_id === 'grp_a' ? 'GROUP A' : 'GROUP B') : 'GRAND FINALS'}
+                  {m.stage === 'group' ? groupOptions.find(group => group.id === m.group_id)?.name.toUpperCase() || 'UNASSIGNED' : 'GRAND FINALS'}
                 </span>
                 {m.is_locked ? (
                   <span className="text-xs font-mono px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
@@ -266,7 +268,7 @@ export const AdminMatchesPage: React.FC = () => {
                   setMatchNumber(m.match_number);
                   setMatchName(m.name);
                   setStage(m.stage);
-                  setGroupId(m.group_id || 'grp_a');
+                  setGroupId(m.group_id || groupOptions[0]?.id || 'grp_a');
                   setMap(m.map);
                   setStatus(m.status);
                   setScheduledTime(m.scheduled_time || '');
@@ -372,8 +374,7 @@ export const AdminMatchesPage: React.FC = () => {
                       onChange={e => setGroupId(e.target.value)}
                       className="w-full bg-[#150a2e] border border-zinc-700 text-white p-2 text-sm outline-none"
                     >
-                      <option value="grp_a">Group A</option>
-                      <option value="grp_b">Group B</option>
+                      {groupOptions.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
                     </select>
                   </div>
                 )}

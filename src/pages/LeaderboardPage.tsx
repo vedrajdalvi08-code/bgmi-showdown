@@ -2,18 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useTournament } from '../context/TournamentContext';
 import { Trophy, Search, HelpCircle, Award, ChevronRight } from 'lucide-react';
 import { LeaderboardRow } from '../types';
+import { getGroupOptions } from '../utils/groups';
 
 export const LeaderboardPage: React.FC = () => {
-  const { fetchLeaderboard, setSelectedTeamId, setActiveTab } = useTournament();
+  const { fetchLeaderboard, settings, setSelectedTeamId, setActiveTab } = useTournament();
 
   const [activeStage, setActiveStage] = useState<'group' | 'finals'>('group');
-  const [activeGroup, setActiveGroup] = useState<'grp_a' | 'grp_b'>('grp_a');
+  const [activeGroup, setActiveGroup] = useState('grp_a');
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [matches, setMatches] = useState<Array<{ id: string; match_number: number; name: string; map: string }>>([]);
   const [qualifiersCount, setQualifiersCount] = useState(8);
   const [loading, setLoading] = useState(false);
   const [showTieBreakerInfo, setShowTieBreakerInfo] = useState(false);
+  const groupOptions = getGroupOptions(settings?.group_names);
 
   const loadData = async () => {
     setLoading(true);
@@ -25,8 +27,12 @@ export const LeaderboardPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (activeStage === 'group' && !groupOptions.some(group => group.id === activeGroup)) {
+      setActiveGroup(groupOptions[0]?.id || 'grp_a');
+      return;
+    }
     loadData();
-  }, [activeStage, activeGroup]);
+  }, [activeStage, activeGroup, settings?.group_names]);
 
   const filteredRows = rows.filter(r =>
     r.team_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -98,33 +104,22 @@ export const LeaderboardPage: React.FC = () => {
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         {/* Stage Toggle Tabs */}
         <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-[#1A0F2E] p-2 border-3 border-black shadow-[4px_4px_0px_0px_#000]">
-          <button
-            onClick={() => {
-              setActiveStage('group');
-              setActiveGroup('grp_a');
-            }}
-            className={`px-4 py-2 font-headline text-base tracking-wider cursor-pointer border-2 border-black transition-all ${
-              activeStage === 'group' && activeGroup === 'grp_a'
-                ? 'bg-[#FF6FB5] text-white shadow-[2px_2px_0px_0px_#000] -translate-y-0.5'
-                : 'bg-zinc-100 dark:bg-black/30 text-zinc-800 dark:text-zinc-300 hover:bg-[#FFD54F] hover:text-black'
-            }`}
-          >
-            GROUP A (24 SQUADS)
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveStage('group');
-              setActiveGroup('grp_b');
-            }}
-            className={`px-4 py-2 font-headline text-base tracking-wider cursor-pointer border-2 border-black transition-all ${
-              activeStage === 'group' && activeGroup === 'grp_b'
-                ? 'bg-[#FF6FB5] text-white shadow-[2px_2px_0px_0px_#000] -translate-y-0.5'
-                : 'bg-zinc-100 dark:bg-black/30 text-zinc-800 dark:text-zinc-300 hover:bg-[#FFD54F] hover:text-black'
-            }`}
-          >
-            GROUP B (24 SQUADS)
-          </button>
+          {groupOptions.map(group => (
+            <button
+              key={group.id}
+              onClick={() => {
+                setActiveStage('group');
+                setActiveGroup(group.id);
+              }}
+              className={`px-4 py-2 font-headline text-base tracking-wider cursor-pointer border-2 border-black transition-all ${
+                activeStage === 'group' && activeGroup === group.id
+                  ? 'bg-[#FF6FB5] text-white shadow-[2px_2px_0px_0px_#000] -translate-y-0.5'
+                  : 'bg-zinc-100 dark:bg-black/30 text-zinc-800 dark:text-zinc-300 hover:bg-[#FFD54F] hover:text-black'
+              }`}
+            >
+              {group.name.toUpperCase()}
+            </button>
+          ))}
 
           <button
             onClick={() => {

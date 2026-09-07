@@ -2,36 +2,36 @@ import React, { useState, useEffect } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { Trophy, Shield, Play, CheckCircle2, AlertTriangle, Sparkles, ArrowRight } from 'lucide-react';
 import { LeaderboardRow } from '../../types';
+import { getGroupOptions } from '../../utils/groups';
 
 export const AdminFinalsPage: React.FC = () => {
-  const { adminToken, fetchLeaderboard, showToast, refreshAll, setActiveTab } = useTournament();
+  const { settings, adminToken, fetchLeaderboard, showToast, refreshAll, setActiveTab } = useTournament();
 
-  const [topA, setTopA] = useState<LeaderboardRow[]>([]);
-  const [topB, setTopB] = useState<LeaderboardRow[]>([]);
+  const [groupPreviews, setGroupPreviews] = useState<Array<{ name: string; rows: LeaderboardRow[] }>>([]);
   const [loading, setLoading] = useState(true);
   const [qualifiersPerGroup, setQualifiersPerGroup] = useState<number>(8);
   const [matchesCount, setMatchesCount] = useState<number>(5);
   const [generating, setGenerating] = useState(false);
+  const groupOptions = getGroupOptions(settings?.group_names);
 
   useEffect(() => {
-    Promise.all([
-      fetchLeaderboard('group', 'grp_a'),
-      fetchLeaderboard('group', 'grp_b')
-    ]).then(([resA, resB]) => {
-      setTopA((resA.leaderboard || []).slice(0, qualifiersPerGroup));
-      setTopB((resB.leaderboard || []).slice(0, qualifiersPerGroup));
+    Promise.all(groupOptions.map(group => fetchLeaderboard('group', group.id))).then(results => {
+      setGroupPreviews(results.map((result, index) => ({
+        name: groupOptions[index].name,
+        rows: (result.leaderboard || []).slice(0, qualifiersPerGroup)
+      })));
       setLoading(false);
     });
-  }, [fetchLeaderboard, qualifiersPerGroup]);
+  }, [fetchLeaderboard, qualifiersPerGroup, settings?.group_names]);
 
   const handleGenerateFinals = async () => {
-    if (!window.confirm(`Generate Grand Finals for ${qualifiersPerGroup * 2} finalists across ${matchesCount} matches? This will update tournament stage to "Finals".`)) {
+    if (!window.confirm(`Generate Grand Finals for ${qualifiersPerGroup * groupOptions.length} finalists across ${matchesCount} matches? This will update tournament stage to "Finals".`)) {
       return;
     }
 
     setGenerating(true);
     try {
-      const res = await fetch('/api/admin/finals/generate', {
+      const res = await fetch('/api/admin/finals/generate-dynamic', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,27 +108,27 @@ export const AdminFinalsPage: React.FC = () => {
         </div>
 
         <div className="p-3 bg-[#080313] border border-zinc-800 text-xs font-mono text-zinc-400 flex items-center justify-between">
-          <span>PROJECTED TOTAL FINALISTS: <strong className="text-[#ffe600]">{qualifiersPerGroup * 2} SQUADS</strong></span>
+          <span>PROJECTED TOTAL FINALISTS: <strong className="text-[#ffe600]">{qualifiersPerGroup * groupOptions.length} SQUADS</strong></span>
           <span>MAP ROTATIONS: ERANGEL, MIRAMAR, SANHOK</span>
         </div>
       </div>
 
       {/* Qualifiers Live Preview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Group A Qualifiers Preview */}
-        <div className="bg-[#0b0518] comic-border-cyan p-5 space-y-3">
+        {groupPreviews.map((group, groupIndex) => (
+        <div key={group.name} className={`bg-[#0b0518] ${groupIndex % 2 === 0 ? 'comic-border-cyan' : 'comic-border'} p-5 space-y-3`}>
           <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-            <h4 className="font-headline text-xl text-[#00f5ff]">
-              GROUP A ADVANCING SQUADS (TOP {qualifiersPerGroup})
+            <h4 className={`font-headline text-xl ${groupIndex % 2 === 0 ? 'text-[#00f5ff]' : 'text-[#ff007f]'}`}>
+              {group.name.toUpperCase()} ADVANCING SQUADS (TOP {qualifiersPerGroup})
             </h4>
             <span className="text-xs font-mono text-zinc-400">SEED 1-{qualifiersPerGroup}</span>
           </div>
 
           <div className="space-y-1.5 font-display text-sm">
-            {topA.map(t => (
+            {group.rows.map(t => (
               <div key={t.team_id} className="p-2 bg-[#120726] border border-zinc-800 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-headline text-base text-[#00f5ff]">#{t.rank}</span>
+                  <span className={`font-headline text-base ${groupIndex % 2 === 0 ? 'text-[#00f5ff]' : 'text-[#ff007f]'}`}>#{t.rank}</span>
                   <span className="text-white font-bold">{t.team_name}</span>
                   <span className="text-xs font-mono text-zinc-400">({t.team_tag})</span>
                 </div>
@@ -139,31 +139,7 @@ export const AdminFinalsPage: React.FC = () => {
             ))}
           </div>
         </div>
-
-        {/* Group B Qualifiers Preview */}
-        <div className="bg-[#0b0518] comic-border p-5 space-y-3">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-            <h4 className="font-headline text-xl text-[#ff007f]">
-              GROUP B ADVANCING SQUADS (TOP {qualifiersPerGroup})
-            </h4>
-            <span className="text-xs font-mono text-zinc-400">SEED 1-{qualifiersPerGroup}</span>
-          </div>
-
-          <div className="space-y-1.5 font-display text-sm">
-            {topB.map(t => (
-              <div key={t.team_id} className="p-2 bg-[#120726] border border-zinc-800 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-headline text-base text-[#ff007f]">#{t.rank}</span>
-                  <span className="text-white font-bold">{t.team_name}</span>
-                  <span className="text-xs font-mono text-zinc-400">({t.team_tag})</span>
-                </div>
-                <div className="font-mono text-xs text-[#ffe600]">
-                  {t.total_points} PTS • {t.total_kills} KILLS
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Generation Trigger Button */}

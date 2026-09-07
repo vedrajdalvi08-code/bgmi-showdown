@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTournament } from '../context/TournamentContext';
-import { Shield, Trophy, Users, Swords, Flame, FileText, Lock, Menu, X, Radio, Sun, Moon } from 'lucide-react';
+import { Shield, Trophy, Users, Swords, Flame, FileText, Lock, Menu, X, Sun, Moon } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { settings, activeTab, setActiveTab, isAdmin, logoutAdmin, theme, toggleTheme } = useTournament();
@@ -89,7 +89,7 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          {/* Right Actions: Dark/Light Mode Toggle & Match Hub / Admin */}
+          {/* Right Actions: Dark/Light Mode Toggle & Admin */}
           <div className="flex items-center gap-2 sm:gap-2.5">
             {/* Global Dark / Light Mode Toggle Button - Visible across all screens */}
             <button
@@ -151,14 +151,6 @@ export const Navbar: React.FC = () => {
               </button>
             )}
 
-            <button
-              onClick={() => setActiveTab('matches')}
-              className="hidden md:flex px-3.5 py-1.5 font-headline text-sm tracking-wider items-center gap-1.5 cursor-pointer bg-[#FF6FB5] text-white border-2 border-black shadow-[3px_3px_0px_0px_#000] hover:bg-black hover:text-white hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all"
-            >
-              <Radio className="w-4 h-4 text-[#FFD54F] animate-pulse" />
-              MATCH HUB
-            </button>
-
             {/* Mobile Hamburger Toggle */}
             <button
               id="nav-mobile-toggle"
@@ -209,19 +201,6 @@ export const Navbar: React.FC = () => {
             );
           })}
 
-          {/* Quick Public Action on Mobile: No Admin access on mobile */}
-          <div className="pt-3 border-t-2 border-black">
-            <button
-              onClick={() => {
-                setActiveTab('matches');
-                setMobileMenuOpen(false);
-              }}
-              className="w-full py-3 bg-[#FF6FB5] text-white font-headline text-center text-lg tracking-wider border-2 border-black shadow-[3px_3px_0px_0px_#000] flex items-center justify-center gap-2 cursor-pointer hover:bg-black transition-colors"
-            >
-              <Radio className="w-4 h-4 text-[#FFD54F] animate-pulse" />
-              LIVE MATCH HUB & SCHEDULE
-            </button>
-          </div>
         </div>
       )}
     </header>

@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useTournament } from '../context/TournamentContext';
 import { Shield, Search, Users, ChevronRight, UserCheck } from 'lucide-react';
 import { Team } from '../types';
+import { getGroupOptions } from '../utils/groups';
 
 export const TeamsPage: React.FC = () => {
-  const { teams, setSelectedTeamId, setActiveTab } = useTournament();
+  const { teams, settings, setSelectedTeamId, setActiveTab } = useTournament();
   const [search, setSearch] = useState('');
-  const [groupFilter, setGroupFilter] = useState<'all' | 'grp_a' | 'grp_b'>('all');
+  const [groupFilter, setGroupFilter] = useState('all');
+  const groupOptions = getGroupOptions(settings?.group_names);
 
   const filteredTeams = teams.filter(t => {
     if (groupFilter !== 'all' && t.group_id !== groupFilter) return false;
@@ -37,7 +39,7 @@ export const TeamsPage: React.FC = () => {
           PARTICIPATING TEAMS
         </h1>
         <p className="text-zinc-700 dark:text-zinc-300 text-sm font-display mt-1">
-          Explore all 48 officially registered BGMI esports organizations, active rosters, and tactical roles.
+          Explore all registered BGMI esports organizations, active rosters, and tactical roles.
         </p>
       </div>
 
@@ -45,7 +47,7 @@ export const TeamsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white dark:bg-[#150A24] p-4 border-3 border-black shadow-[4px_4px_0px_0px_#000]">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-headline font-bold text-zinc-600 dark:text-zinc-400">GROUP:</span>
-          {(['all', 'grp_a', 'grp_b'] as const).map(g => (
+          {['all', ...groupOptions.map(group => group.id)].map(g => (
             <button
               key={g}
               onClick={() => setGroupFilter(g)}
@@ -55,7 +57,7 @@ export const TeamsPage: React.FC = () => {
                   : 'text-zinc-800 dark:text-zinc-300 hover:bg-[#FFD54F] hover:text-black bg-[#FFF5F0] dark:bg-[#1E1136]'
               }`}
             >
-              {g === 'all' ? 'ALL SQUADS (48)' : g === 'grp_a' ? 'GROUP A (24)' : 'GROUP B (24)'}
+              {g === 'all' ? `ALL SQUADS (${teams.length})` : `${groupOptions.find(group => group.id === g)?.name.toUpperCase()} (${teams.filter(team => team.group_id === g).length})`}
             </button>
           ))}
         </div>
@@ -84,7 +86,7 @@ export const TeamsPage: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs font-mono font-bold px-2 py-0.5 bg-[#00E5FF] text-black border border-black shadow-[1px_1px_0px_0px_#000]">
-                    {team.group_id === 'grp_a' ? 'GROUP A' : team.group_id === 'grp_b' ? 'GROUP B' : 'UNASSIGNED'}
+                    {team.group_name || groupOptions.find(group => group.id === team.group_id)?.name || 'UNASSIGNED'}
                   </span>
                   <span className="text-xs font-mono text-emerald-600 dark:text-[#00E676] font-bold">
                     {team.status}

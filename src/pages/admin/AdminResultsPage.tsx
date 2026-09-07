@@ -75,7 +75,7 @@ export const AdminResultsPage: React.FC = () => {
 
   const handleQuickSeedResults = () => {
     const newMap: Record<string, { placement: number; kills: number }> = {};
-    eligibleTeams.slice(0, 24).forEach((team, idx) => {
+    eligibleTeams.slice(0, settings?.teams_per_group || 25).forEach((team, idx) => {
       const placement = idx + 1;
       const kills = Math.max(0, Math.floor(Math.random() * 8) + (placement === 1 ? 7 : 0));
       newMap[team.id] = { placement, kills };
@@ -322,7 +322,7 @@ export const AdminResultsPage: React.FC = () => {
                         <input
                           type="number"
                           min="1"
-                          max="24"
+                          max={settings?.teams_per_group || 25}
                           disabled={selectedMatch?.is_locked === 1}
                           value={currentEntry.placement || ''}
                           onChange={e => handleManualChange(team.id, 'placement', Number(e.target.value))}

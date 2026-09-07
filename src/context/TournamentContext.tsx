@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { TournamentSettings, Team, Match, LeaderboardRow, TournamentRule } from '../types';
 import { DEFAULT_SETTINGS, DEFAULT_RULES, DEFAULT_STATS } from '../data/defaults';
 import { safeFetchJson } from '../utils/api';
+import { groupId } from '../utils/groups';
 
 interface TournamentContextType {
   settings: TournamentSettings | null;
@@ -254,7 +255,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   useEffect(() => {
     refreshAll();
-    fetchLeaderboard('group', 'grp_a');
+    fetchLeaderboard('group', groupId(0));
 
     // Polling every 12 seconds for live leaderboard updates without page reload
     const interval = setInterval(() => {

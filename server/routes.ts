@@ -322,10 +322,49 @@ apiRouter.post('/admin/change-password', requireAdmin, async (req, res) => {
   }
 });
 
+const MAX_TEAMS_PER_GROUP = 25;
+const MAX_TOTAL_TEAMS = 1000;
+
+const groupCode = (index: number): string => {
+  let value = index + 1;
+  let code = '';
+  while (value > 0) {
+    value -= 1;
+    code = String.fromCharCode(65 + (value % 26)) + code;
+    value = Math.floor(value / 26);
+  }
+  return code;
+};
+
+const syncGroupsForTeamCount = async (totalTeams: number): Promise<void> => {
+  const teamResult = await supabase.from('teams').select('id').order('created_at').order('name');
+  if (teamResult.error) throw teamResult.error;
+
+  const actualTeamCount = teamResult.data?.length || 0;
+  const groupCount = Math.ceil(Math.max(totalTeams, actualTeamCount) / MAX_TEAMS_PER_GROUP);
+  const groups = Array.from({ length: groupCount }, (_, index) => {
+    const code = groupCode(index);
+    return { id: `grp_${code.toLowerCase()}`, name: `Group ${code}`, code, display_order: index + 1 };
+  });
+
+  const groupResult = await supabase.from('groups').upsert(groups, { onConflict: 'id' });
+  if (groupResult.error) throw groupResult.error;
+
+  if (actualTeamCount > 0) {
+    const assignments = teamResult.data!.map((team, index) => {
+      const assignedGroup = Math.min(Math.floor(index * groupCount / actualTeamCount), groupCount - 1);
+      return supabase.from('teams').update({ group_id: groups[assignedGroup].id }).eq('id', team.id);
+    });
+    const assignmentResults = await Promise.all(assignments);
+    const assignmentError = assignmentResults.find(result => result.error)?.error;
+    if (assignmentError) throw assignmentError;
+  }
+};
+
 apiRouter.get('/settings', async (_req, res) => { try { res.json({ settings: await settings() }); } catch (error) { fail(res, error); } });
 apiRouter.get('/tournament', async (_req, res) => { try { const tournamentSettings = await settings(); const [totalTeams, totalMatches, completedMatches, resultRows] = await Promise.all([count('teams'), count('matches'), count('matches', q => q.in('status', ['Completed', 'Locked'])), supabase.from('match_results').select('kills,placement')]); if (resultRows.error) throw resultRows.error; const results = resultRows.data || []; const next = await supabase.from('matches').select('*').eq('status', 'Scheduled').order('match_number').limit(1).maybeSingle(); const recent = await supabase.from('matches').select('*').in('status', ['Completed', 'Locked']).order('match_number', { ascending: false }).limit(1).maybeSingle(); res.json({ settings: tournamentSettings, stats: { totalTeams, completedMatches, totalMatches, totalKills: results.reduce((sum, row) => sum + row.kills, 0), totalChickenDinners: results.filter(row => row.placement === 1).length, remainingMatches: Math.max(0, totalMatches - completedMatches) }, nextMatch: next.data, recentMatch: recent.data }); } catch (error) { fail(res, error); } });
 apiRouter.get('/leaderboard', async (req, res) => { try { res.json(await computeLeaderboard((req.query.stage as 'group' | 'finals') || 'group', (req.query.groupId as string) || ((req.query.stage || 'group') === 'group' ? 'grp_a' : undefined))); } catch (error) { fail(res, error); } });
-apiRouter.get('/groups', async (_req, res) => { try { const [groups, teams] = await Promise.all([supabase.from('groups').select('*').order('display_order'), supabase.from('teams').select('id,name,tag,logo_url,group_id,status').order('name')]); if (groups.error) throw groups.error; if (teams.error) throw teams.error; res.json({ groups: (groups.data || []).map(group => ({ ...group, teams: (teams.data || []).filter(team => team.group_id === group.id) })), unassigned: (teams.data || []).filter(team => !team.group_id) }); } catch (error) { fail(res, error); } });
+apiRouter.get('/groups', async (_req, res) => { try { const [groups, teams, tournamentSettings] = await Promise.all([supabase.from('groups').select('*').order('display_order'), supabase.from('teams').select('id,name,tag,logo_url,group_id,status').order('name'), settings()]); if (groups.error) throw groups.error; if (teams.error) throw teams.error; const activeGroupCount = Number(tournamentSettings.num_groups) || 2; res.json({ groups: (groups.data || []).slice(0, activeGroupCount).map(group => ({ ...group, teams: (teams.data || []).filter(team => team.group_id === group.id) })), unassigned: (teams.data || []).filter(team => !team.group_id) }); } catch (error) { fail(res, error); } });
 
 apiRouter.get('/matches', async (req, res) => { try { let query = supabase.from('matches').select('*, groups(name)').order('match_number'); if (req.query.stage) query = query.eq('stage', req.query.stage); if (req.query.groupId) query = query.eq('group_id', req.query.groupId); const response = await query; if (response.error) throw response.error; const matches = await Promise.all((response.data || []).map(async match => { const normalized = { ...match, group_name: match.groups?.name }; delete (normalized as any).groups; if (!['Completed', 'Locked'].includes(match.status)) return normalized; const [winner, topKill] = await Promise.all([supabase.from('match_results').select('placement,kills,total_points,teams(name,tag,logo_url)').eq('match_id', match.id).eq('placement', 1).maybeSingle(), supabase.from('match_results').select('kills,teams(name,tag)').eq('match_id', match.id).order('kills', { ascending: false }).limit(1).maybeSingle()]); const winnerTeam = relation(winner.data?.teams); const topKillTeam = relation(topKill.data?.teams); return { ...normalized, winner: winner.data ? { ...winner.data, team_name: winnerTeam?.name, team_tag: winnerTeam?.tag, logo_url: winnerTeam?.logo_url } : null, topKillTeam: topKill.data ? { kills: topKill.data.kills, team_name: topKillTeam?.name, team_tag: topKillTeam?.tag } : null }; })); res.json({ matches }); } catch (error) { fail(res, error); } });
 apiRouter.get('/matches/:id', async (req, res) => { try { const match = await supabase.from('matches').select('*, groups(name)').eq('id', req.params.id).maybeSingle(); if (match.error) throw match.error; if (!match.data) { res.status(404).json({ error: 'Match not found' }); return; } const normalizedMatch = { ...match.data, group_name: match.data.groups?.name }; delete (normalizedMatch as any).groups; const results = await supabase.from('match_results').select('*, teams(name,tag,logo_url)').eq('match_id', req.params.id).order('placement'); if (results.error) throw results.error; const normalized = (results.data || []).map(row => ({ ...row, team_name: row.teams?.name, team_tag: row.teams?.tag, team_logo: row.teams?.logo_url })); res.json({ match: normalizedMatch, results: normalized, stats: { totalMatchKills: normalized.reduce((sum, row) => sum + row.kills, 0), highestScore: Math.max(0, ...normalized.map(row => row.total_points)), highestKills: Math.max(0, ...normalized.map(row => row.kills)), participatingTeamsCount: normalized.length }, winner: normalized.find(row => row.placement === 1) || null }); } catch (error) { fail(res, error); } });
@@ -355,7 +394,58 @@ apiRouter.post('/admin/matches/:id/results', requireAdmin, async (req, res) => {
 apiRouter.post('/admin/matches/:id/results/csv-preview', requireAdmin, async (req, res) => { try { const match = await supabase.from('matches').select('*').eq('id', req.params.id).maybeSingle(); if (match.error) throw match.error; if (!match.data) { res.status(404).json({ error: 'Match not found' }); return; } if (!req.body.csvText || typeof req.body.csvText !== 'string') { res.status(400).json({ error: 'CSV text content is required' }); return; } const teams = await supabase.from('teams').select('id,name,tag,group_id'); if (teams.error) throw teams.error; const lines = req.body.csvText.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean); const parsedRows: any[] = [], errors: string[] = [], warnings: string[] = [], seenTeams = new Set<string>(), seenPlacements = new Set<number>(); for (let i = lines[0]?.toLowerCase().includes('team') ? 1 : 0; i < lines.length; i++) { const parts = lines[i].split(',').map((part: string) => part.trim()), placement = Number.parseInt(parts[1], 10), kills = Number.parseInt(parts[2], 10), team = (teams.data || []).find(t => t.name.toLowerCase() === parts[0].toLowerCase() || t.tag.toLowerCase() === parts[0].toLowerCase() || t.id.toLowerCase() === parts[0].toLowerCase()); if (parts.length < 3 || !team || !Number.isInteger(placement) || placement < 1 || !Number.isInteger(kills) || kills < 0) { errors.push(`Row ${i + 1}: Invalid team, placement, or kills`); continue; } if (seenTeams.has(team.id) || seenPlacements.has(placement)) errors.push(`Row ${i + 1}: Duplicate team or placement`); seenTeams.add(team.id); seenPlacements.add(placement); if (match.data.group_id && team.group_id && match.data.group_id !== team.group_id) warnings.push(`Row ${i + 1}: Team "${team.name}" is assigned to another group.`); const points = await calculateMatchPoints(placement, kills); parsedRows.push({ team_id: team.id, team_name: team.name, team_tag: team.tag, placement, kills, ...points }); } res.json({ valid: errors.length === 0, parsedRows: parsedRows.sort((a, b) => a.placement - b.placement), errors, warnings, totalRows: parsedRows.length }); } catch (error) { fail(res, error); } });
 
 apiRouter.post('/admin/finals/generate', requireAdmin, async (req, res) => { try { const qCount = Number(req.body.qualifiersPerGroup) || 8, mCount = Number(req.body.matchesCount) || 5; const [a, b] = await Promise.all([computeLeaderboard('group', 'grp_a'), computeLeaderboard('group', 'grp_b')]); const finalists = [...a.leaderboard.slice(0, qCount), ...b.leaderboard.slice(0, qCount)]; if (!finalists.length) { res.status(400).json({ error: 'Not enough group stage data to determine qualifiers' }); return; } const eliminated = await supabase.from('teams').update({ status: 'Eliminated' }).neq('id', ''); if (eliminated.error) throw eliminated.error; const qualified = await supabase.from('teams').update({ status: 'Qualified' }).in('id', finalists.map(team => team.team_id)); if (qualified.error) throw qualified.error; const removed = await supabase.from('matches').delete().eq('stage', 'finals'); if (removed.error) throw removed.error; const maps = ['Erangel', 'Miramar', 'Sanhok', 'Rondo', 'Erangel', 'Vikendi'], now = new Date().toISOString(); const matches = Array.from({ length: mCount }, (_, index) => ({ id: `m_finals_${index + 1}`, match_number: index + 1, name: `Grand Finals — Match ${index + 1}`, stage: 'finals', group_id: null, map: maps[index % maps.length], status: 'Scheduled', scheduled_time: `2026-09-12 ${14 + Math.floor(index * 0.75)}:${(index + 1) % 2 === 0 ? '30' : '00'} IST`, is_locked: false, created_at: now })); const inserted = await supabase.from('matches').insert(matches); if (inserted.error) throw inserted.error; const status = await supabase.from('tournament_settings').update({ value: 'Finals' }).eq('key', 'status'); if (status.error) throw status.error; await audit('FINALS_GENERATED', 'admin', { qualifiersA: Math.min(a.leaderboard.length, qCount), qualifiersB: Math.min(b.leaderboard.length, qCount), totalFinalists: finalists.length, finalsMatchesCreated: mCount }); res.json({ success: true, message: 'Finals squads successfully generated!', finalists: finalists.map(team => ({ id: team.team_id, name: team.team_name, tag: team.team_tag })), matchesCreated: mCount }); } catch (error) { fail(res, error); } });
-apiRouter.put('/admin/settings', requireAdmin, async (req, res) => { try { const updates = Object.entries(req.body as Record<string, any>).map(([key, value]) => ({ key, value: typeof value === 'string' ? value : JSON.stringify(value) })); const result = await supabase.from('tournament_settings').upsert(updates, { onConflict: 'key' }); if (result.error) throw result.error; await audit('SETTINGS_UPDATED', 'admin', req.body); res.json({ success: true, message: 'Settings updated successfully' }); } catch (error) { fail(res, error); } });
+apiRouter.post('/admin/finals/generate-dynamic', requireAdmin, async (req, res) => { try {
+  const qCount = Number(req.body.qualifiersPerGroup) || 8;
+  const mCount = Number(req.body.matchesCount) || 5;
+  const tournamentSettings = await settings();
+  const groupCount = Number(tournamentSettings.num_groups) || 1;
+  const groupIds = Array.from({ length: groupCount }, (_, index) => `grp_${groupCode(index).toLowerCase()}`);
+  const groupLeaderboards = await Promise.all(groupIds.map(groupId => computeLeaderboard('group', groupId)));
+  const finalists = groupLeaderboards.flatMap(group => group.leaderboard.slice(0, qCount));
+  if (!finalists.length) { res.status(400).json({ error: 'Not enough group stage data to determine qualifiers' }); return; }
+  const eliminated = await supabase.from('teams').update({ status: 'Eliminated' }).neq('id', '');
+  if (eliminated.error) throw eliminated.error;
+  const qualified = await supabase.from('teams').update({ status: 'Qualified' }).in('id', finalists.map(team => team.team_id));
+  if (qualified.error) throw qualified.error;
+  const removed = await supabase.from('matches').delete().eq('stage', 'finals');
+  if (removed.error) throw removed.error;
+  const maps = ['Erangel', 'Miramar', 'Sanhok', 'Rondo', 'Erangel', 'Vikendi'];
+  const now = new Date().toISOString();
+  const matches = Array.from({ length: mCount }, (_, index) => ({
+    id: `m_finals_${index + 1}`, match_number: index + 1, name: `Grand Finals — Match ${index + 1}`,
+    stage: 'finals', group_id: null, map: maps[index % maps.length], status: 'Scheduled',
+    scheduled_time: `2026-09-12 ${14 + Math.floor(index * 0.75)}:${(index + 1) % 2 === 0 ? '30' : '00'} IST`,
+    is_locked: false, created_at: now
+  }));
+  const inserted = await supabase.from('matches').insert(matches);
+  if (inserted.error) throw inserted.error;
+  const status = await supabase.from('tournament_settings').upsert({ key: 'status', value: '"Finals"' }, { onConflict: 'key' });
+  if (status.error) throw status.error;
+  await audit('FINALS_GENERATED', 'admin', { groupCount, totalFinalists: finalists.length, finalsMatchesCreated: mCount });
+  res.json({ success: true, message: 'Finals squads successfully generated!', finalists });
+} catch (error) { fail(res, error); } });
+
+apiRouter.put('/admin/settings', requireAdmin, async (req, res) => { try {
+  const body = req.body as Record<string, unknown>;
+  if (body.max_teams !== undefined) {
+    const totalTeams = Number(body.max_teams);
+    if (!Number.isInteger(totalTeams) || totalTeams < 1 || totalTeams > MAX_TOTAL_TEAMS) {
+      res.status(400).json({ error: `Total teams must be a whole number from 1 to ${MAX_TOTAL_TEAMS}` });
+      return;
+    }
+    const groupCount = Math.ceil(totalTeams / MAX_TEAMS_PER_GROUP);
+    const groupNames = Array.from({ length: groupCount }, (_, index) => `Group ${groupCode(index)}`);
+    body.num_groups = groupCount;
+    body.group_names = groupNames;
+    body.teams_per_group = MAX_TEAMS_PER_GROUP;
+    await syncGroupsForTeamCount(totalTeams);
+  }
+  const updates = Object.entries(body).map(([key, value]) => ({ key, value: typeof value === 'string' ? value : JSON.stringify(value) }));
+  const result = await supabase.from('tournament_settings').upsert(updates, { onConflict: 'key' });
+  if (result.error) throw result.error;
+  await audit('SETTINGS_UPDATED', 'admin', body);
+  res.json({ success: true, message: 'Settings updated successfully' });
+} catch (error) { fail(res, error); } });
 apiRouter.post('/admin/rules', requireAdmin, async (req, res) => { try { const { category, title, content, display_order } = req.body; if (!title || !content) { res.status(400).json({ error: 'Title and content are required' }); return; } const id = `rule_${Date.now()}`; const result = await supabase.from('tournament_rules').insert({ id, category: category || 'General', title, content, display_order: display_order || 0 }); if (result.error) throw result.error; await audit('RULE_CREATED', 'admin', { id, title }); res.json({ success: true, id }); } catch (error) { fail(res, error); } });
 apiRouter.put('/admin/rules/:id', requireAdmin, async (req, res) => { try { const body = req.body; const result = await supabase.from('tournament_rules').update(Object.fromEntries(Object.entries({ category: body.category, title: body.title, content: body.content, display_order: body.display_order }).filter(([, value]) => value !== undefined))).eq('id', req.params.id); if (result.error) throw result.error; await audit('RULE_UPDATED', 'admin', { id: req.params.id, title: body.title }); res.json({ success: true, message: 'Rule updated' }); } catch (error) { fail(res, error); } });
 apiRouter.delete('/admin/rules/:id', requireAdmin, async (req, res) => { try { const result = await supabase.from('tournament_rules').delete().eq('id', req.params.id); if (result.error) throw result.error; await audit('RULE_DELETED', 'admin', { id: req.params.id }); res.json({ success: true, message: 'Rule deleted' }); } catch (error) { fail(res, error); } });

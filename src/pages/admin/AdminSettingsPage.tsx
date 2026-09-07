@@ -1,16 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTournament } from '../../context/TournamentContext';
-import { Settings, Save, ShieldAlert, Key, Sliders, CheckCircle2, Lock } from 'lucide-react';
+import { Settings, Save, ShieldAlert, Key, Sliders, CheckCircle2, Lock, Minus, Plus, Users } from 'lucide-react';
+import { getGroupDistribution, MAX_TEAMS_PER_GROUP, MAX_TOTAL_TEAMS } from '../../utils/groups';
 
 export const AdminSettingsPage: React.FC = () => {
-  const { settings, adminToken, showToast, refreshAll } = useTournament();
+  const { settings, teams, adminToken, showToast, refreshAll } = useTournament();
 
   // General state
   const [tournamentName, setTournamentName] = useState(settings?.name || 'BGMI SHOWDOWN');
   const [tagline, setTagline] = useState(settings?.tagline || 'DROP. SURVIVE. DOMINATE.');
   const [description, setDescription] = useState(settings?.description || '');
   const [status, setStatus] = useState<string>(settings?.status || 'Group Stage');
-  const [maxTeams, setMaxTeams] = useState<number>(settings?.max_teams || 48);
+  const [maxTeams, setMaxTeams] = useState<string>(String(settings?.max_teams || 48));
+  const [teamCountError, setTeamCountError] = useState('');
+  const saveTeamCountTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [qualifiersPerGroup, setQualifiersPerGroup] = useState<number>(settings?.qualifiers_per_group || 8);
   const [killPointValue, setKillPointValue] = useState<number>(settings?.kill_point_value || 1);
 
@@ -36,7 +39,7 @@ export const AdminSettingsPage: React.FC = () => {
       setTagline(settings.tagline);
       setDescription(settings.description);
       setStatus(settings.status);
-      setMaxTeams(settings.max_teams);
+      setMaxTeams(String(settings.max_teams));
       setQualifiersPerGroup(settings.qualifiers_per_group);
       setKillPointValue(settings.kill_point_value);
       if (settings.placement_points) setPlacementPoints(settings.placement_points);
@@ -44,12 +47,47 @@ export const AdminSettingsPage: React.FC = () => {
     }
   }, [settings]);
 
+  const parsedTeamCount = Number(maxTeams);
+  const groupDistribution = Number.isInteger(parsedTeamCount) && parsedTeamCount >= 1 && parsedTeamCount <= MAX_TOTAL_TEAMS
+    ? getGroupDistribution(parsedTeamCount)
+    : [];
+
+  const validateTeamCount = (value: string): number | null => {
+    const parsed = Number(value);
+    if (!value.trim() || !Number.isInteger(parsed) || parsed < 1 || parsed > MAX_TOTAL_TEAMS) return null;
+    return parsed;
+  };
+
+  const handleTeamCountChange = (value: string) => {
+    setMaxTeams(value);
+    const parsed = validateTeamCount(value);
+    setTeamCountError(parsed === null ? `Enter a whole number from 1 to ${MAX_TOTAL_TEAMS}.` : '');
+
+    if (saveTeamCountTimer.current) clearTimeout(saveTeamCountTimer.current);
+    if (parsed !== null && adminToken) {
+      saveTeamCountTimer.current = setTimeout(async () => {
+        await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+          body: JSON.stringify({ max_teams: parsed })
+        });
+        await refreshAll();
+      }, 500);
+    }
+  };
+
   const handlePlacementChange = (rank: number, val: number) => {
     setPlacementPoints(prev => ({ ...prev, [rank]: val }));
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    const parsedTeamCount = validateTeamCount(maxTeams);
+    if (parsedTeamCount === null) {
+      setTeamCountError(`Enter a whole number from 1 to ${MAX_TOTAL_TEAMS}.`);
+      showToast('Total teams must be a valid whole number.', 'error');
+      return;
+    }
     try {
       const res = await fetch('/api/admin/settings', {
         method: 'PUT',
@@ -62,7 +100,7 @@ export const AdminSettingsPage: React.FC = () => {
           tagline,
           description,
           status,
-          max_teams: Number(maxTeams),
+          max_teams: parsedTeamCount,
           qualifiers_per_group: Number(qualifiersPerGroup),
           kill_point_value: Number(killPointValue),
           placement_points: placementPoints,
@@ -193,10 +231,81 @@ export const AdminSettingsPage: React.FC = () => {
               <input
                 type="number"
                 value={maxTeams}
-                onChange={e => setMaxTeams(Number(e.target.value))}
+                onChange={e => handleTeamCountChange(e.target.value)}
                 className="w-full bg-[#140b28] border border-zinc-700 text-white p-2 text-sm outline-none"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Section 1A: Automatic Group Distribution */}
+        <div className="bg-[#0b0518] comic-border-cyan p-6 space-y-5">
+          <div>
+            <h3 className="font-headline text-2xl text-white flex items-center gap-2">
+              <Users className="w-5 h-5 text-[#00f5ff]" /> AUTOMATIC GROUP DISTRIBUTION
+            </h3>
+            <p className="text-xs font-mono text-zinc-400 mt-1">
+              Groups recalculate and registered squads are reassigned whenever the total changes.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-mono text-zinc-400 uppercase mb-1">Total Teams</label>
+              <div className="flex items-stretch">
+                <button
+                  type="button"
+                  aria-label="Decrease total teams"
+                  onClick={() => handleTeamCountChange(String(Math.max(1, parsedTeamCount - 1)))}
+                  className="w-10 bg-[#140b28] border border-zinc-700 text-white hover:text-[#00f5ff] cursor-pointer"
+                >
+                  <Minus className="w-4 h-4 mx-auto" />
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  max={MAX_TOTAL_TEAMS}
+                  value={maxTeams}
+                  onChange={e => handleTeamCountChange(e.target.value)}
+                  className="min-w-0 flex-1 bg-[#140b28] border-y border-zinc-700 text-white p-2 text-center font-headline text-lg outline-none"
+                />
+                <button
+                  type="button"
+                  aria-label="Increase total teams"
+                  onClick={() => handleTeamCountChange(String(Math.min(MAX_TOTAL_TEAMS, parsedTeamCount + 1)))}
+                  className="w-10 bg-[#140b28] border border-zinc-700 text-white hover:text-[#00f5ff] cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 mx-auto" />
+                </button>
+              </div>
+              {teamCountError && <p className="text-xs font-mono text-red-400 mt-1">{teamCountError}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono text-zinc-400 uppercase mb-1">Max Teams Per Group</label>
+              <div className="bg-[#140b28] border border-zinc-700 text-[#ffe600] p-2 font-headline text-lg">{MAX_TEAMS_PER_GROUP}</div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono text-zinc-400 uppercase mb-1">Automatic Groups</label>
+              <div className="bg-[#140b28] border border-zinc-700 text-[#00f5ff] p-2 font-headline text-lg">{groupDistribution.length || '—'}</div>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-mono text-zinc-400 uppercase mb-2">Distribution</div>
+            {groupDistribution.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {groupDistribution.map(group => (
+                  <div key={group.code} className="bg-[#140b28] border border-zinc-700 p-3">
+                    <div className="font-headline text-white tracking-wider">{group.name.toUpperCase()}</div>
+                    <div className="text-[#00f5ff] font-mono text-sm mt-1">{group.size} TEAMS</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs font-mono text-red-400">Enter a valid total team count to preview distribution.</p>
+            )}
           </div>
         </div>
 

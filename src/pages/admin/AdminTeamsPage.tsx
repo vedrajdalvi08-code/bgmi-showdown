@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { Shield, Plus, Edit2, Trash2, Users, Search, X, Check, AlertTriangle } from 'lucide-react';
 import { Team, Player } from '../../types';
+import { getGroupOptions } from '../../utils/groups';
 
 export const AdminTeamsPage: React.FC = () => {
-  const { teams, adminToken, showToast, refreshAll } = useTournament();
+  const { teams, settings, adminToken, showToast, refreshAll } = useTournament();
   const [search, setSearch] = useState('');
-  const [groupFilter, setGroupFilter] = useState<'all' | 'grp_a' | 'grp_b'>('all');
+  const [groupFilter, setGroupFilter] = useState('all');
+  const groupOptions = getGroupOptions(settings?.group_names);
 
   // Modals state
   const [showAddTeamModal, setShowAddTeamModal] = useState(false);
@@ -190,7 +192,7 @@ export const AdminTeamsPage: React.FC = () => {
             SQUAD & ROSTER MANAGEMENT
           </h1>
           <p className="text-xs font-mono text-zinc-400 mt-0.5">
-            Total Squads: <strong className="text-[#00f5ff]">{teams.length}</strong> / 48 target
+            Total Squads: <strong className="text-[#00f5ff]">{teams.length}</strong> / {settings?.max_teams || 48} target
           </p>
         </div>
 
@@ -198,7 +200,7 @@ export const AdminTeamsPage: React.FC = () => {
           onClick={() => {
             setTeamName('');
             setTeamTag('');
-            setTeamGroup('grp_a');
+            setTeamGroup(groupOptions[0]?.id || 'grp_a');
             setTeamStatus('Registered');
             setShowAddTeamModal(true);
           }}
@@ -212,7 +214,7 @@ export const AdminTeamsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#0e061c] p-4 border border-zinc-800">
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono text-zinc-500">GROUP:</span>
-          {(['all', 'grp_a', 'grp_b'] as const).map(g => (
+          {['all', ...groupOptions.map(group => group.id)].map(g => (
             <button
               key={g}
               onClick={() => setGroupFilter(g)}
@@ -220,7 +222,7 @@ export const AdminTeamsPage: React.FC = () => {
                 groupFilter === g ? 'bg-[#00f5ff] text-black font-bold' : 'text-zinc-400 bg-white/5'
               }`}
             >
-              {g === 'all' ? 'ALL' : g === 'grp_a' ? 'GROUP A' : 'GROUP B'}
+              {g === 'all' ? 'ALL' : groupOptions.find(group => group.id === g)?.name.toUpperCase()}
             </button>
           ))}
         </div>
@@ -261,7 +263,7 @@ export const AdminTeamsPage: React.FC = () => {
                 </td>
                 <td className="py-3 px-4 text-center">
                   <span className="px-2 py-0.5 bg-white/10 text-zinc-300 text-xs font-mono">
-                    {team.group_id === 'grp_a' ? 'GROUP A' : team.group_id === 'grp_b' ? 'GROUP B' : 'UNASSIGNED'}
+                    {team.group_name || groupOptions.find(group => group.id === team.group_id)?.name || 'UNASSIGNED'}
                   </span>
                 </td>
                 <td className="py-3 px-4 text-center">
@@ -285,7 +287,7 @@ export const AdminTeamsPage: React.FC = () => {
                       setEditingTeam(team);
                       setTeamName(team.name);
                       setTeamTag(team.tag);
-                      setTeamGroup(team.group_id || 'grp_a');
+                      setTeamGroup(team.group_id || groupOptions[0]?.id || 'grp_a');
                       setTeamStatus(team.status);
                     }}
                     className="p-1.5 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-zinc-700 cursor-pointer"
@@ -358,8 +360,7 @@ export const AdminTeamsPage: React.FC = () => {
                   onChange={e => setTeamGroup(e.target.value)}
                   className="w-full bg-[#150a2e] border border-zinc-700 text-white p-2 text-sm outline-none"
                 >
-                  <option value="grp_a">Group A</option>
-                  <option value="grp_b">Group B</option>
+                  {groupOptions.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
                 </select>
               </div>
 

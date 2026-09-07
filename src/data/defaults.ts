@@ -18,7 +18,7 @@ export const DEFAULT_SETTINGS: TournamentSettings = {
   registration_status: 'Closed',
   num_groups: 2,
   group_names: ['Group A', 'Group B'],
-  teams_per_group: 24,
+  teams_per_group: 25,
   qualifiers_per_group: 8,
   finals_teams_count: 16,
   group_matches_count: 3,

@@ -75,7 +75,7 @@ export const TeamDetailPage: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="px-2.5 py-0.5 bg-[#00E5FF] text-black border border-black text-xs font-headline font-bold">
-                      {team.group_name || (team.group_id === 'grp_a' ? 'GROUP A' : 'GROUP B')}
+                      {team.group_name || team.group_id?.replace('grp_', 'GROUP ').toUpperCase() || 'UNASSIGNED'}
                     </span>
                     <span className="px-2.5 py-0.5 bg-[#00E676] text-black border border-black text-xs font-headline font-bold">
                       STATUS: {team.status}
