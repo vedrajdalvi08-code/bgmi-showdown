@@ -129,7 +129,7 @@ export const HomePage: React.FC = () => {
               <span className="text-xl">MATCHES</span>
             </div>
             <div className="text-[11px] font-headline font-bold text-[#FF6FB5] mt-1 uppercase">
-              MAXIMUM MATCHES A GROUP WILL PLAY
+              MAXIMUM MATCHES A TEAM WILL PLAY
             </div>
           </div>
 
