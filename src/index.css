@@ -19,27 +19,41 @@
     --vice-bg-dark: #0D0714;
   }
 
-  html.light, :root:not(.dark) {
+  /* LIGHT THEME */
+  html.light {
     color-scheme: light;
     background-color: #FFF5F0;
     color: #0d0714;
   }
 
+  /* DARK THEME */
   html.dark {
     color-scheme: dark;
     background-color: #0D0714;
     color: #f8fafc;
   }
 
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+  }
+
   body {
     font-family: var(--font-body);
     min-height: 100vh;
     overflow-x: hidden;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
   }
 }
 
-/* Custom Typography */
+/* =========================================================
+   CUSTOM TYPOGRAPHY
+   ========================================================= */
+
 .font-headline {
   font-family: 'Bebas Neue', Impact, sans-serif;
   letter-spacing: 0.05em;
@@ -57,11 +71,16 @@
   font-family: 'Montserrat', sans-serif;
 }
 
-/* GTA Vice Neo-Brutalist Utility Classes */
+/* =========================================================
+   GTA VICE NEO-BRUTALIST UTILITY CLASSES
+   ========================================================= */
+
 .gta-card {
   border: 3px solid #000000;
   box-shadow: 4px 4px 0px 0px #000000;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .gta-card:hover {
@@ -83,12 +102,14 @@
   letter-spacing: 0.05em;
   transition: all 0.15s ease;
 }
+
 .gta-btn-pink:hover {
   background-color: #000000;
   color: #FFFFFF;
   transform: translateY(-1px);
   box-shadow: 4px 4px 0px 0px #000000;
 }
+
 .gta-btn-pink:active {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0px 0px #000000;
@@ -103,12 +124,14 @@
   letter-spacing: 0.05em;
   transition: all 0.15s ease;
 }
+
 .gta-btn-cyan:hover {
   background-color: #FFD54F;
   color: #000000;
   transform: translateY(-1px);
   box-shadow: 4px 4px 0px 0px #000000;
 }
+
 .gta-btn-cyan:active {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0px 0px #000000;
@@ -123,12 +146,14 @@
   letter-spacing: 0.05em;
   transition: all 0.15s ease;
 }
+
 .gta-btn-yellow:hover {
   background-color: #FF6FB5;
   color: #FFFFFF;
   transform: translateY(-1px);
   box-shadow: 4px 4px 0px 0px #000000;
 }
+
 .gta-btn-yellow:active {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0px 0px #000000;
@@ -141,11 +166,16 @@
   letter-spacing: 0.05em;
 }
 
-/* Neon Borders & Containers */
+/* =========================================================
+   NEON BORDERS & CONTAINERS
+   ========================================================= */
+
 .comic-border {
   border: 2px solid #ff007f;
   background: rgba(17, 9, 37, 0.75);
-  box-shadow: 0 0 14px rgba(255, 0, 127, 0.35), inset 0 0 10px rgba(255, 0, 127, 0.12);
+  box-shadow:
+    0 0 14px rgba(255, 0, 127, 0.35),
+    inset 0 0 10px rgba(255, 0, 127, 0.12);
   backdrop-filter: blur(10px);
 }
 
@@ -159,14 +189,18 @@
 .comic-border-lg {
   border: 2px solid #b967ff;
   background: rgba(22, 11, 45, 0.8);
-  box-shadow: 0 0 20px rgba(185, 103, 255, 0.4), inset 0 0 12px rgba(185, 103, 255, 0.2);
+  box-shadow:
+    0 0 20px rgba(185, 103, 255, 0.4),
+    inset 0 0 12px rgba(185, 103, 255, 0.2);
   backdrop-filter: blur(12px);
 }
 
 .comic-border-yellow {
   border: 2px solid #ffe600;
   background: rgba(26, 20, 5, 0.8);
-  box-shadow: 0 0 16px rgba(255, 230, 0, 0.4), inset 0 0 10px rgba(255, 230, 0, 0.15);
+  box-shadow:
+    0 0 16px rgba(255, 230, 0, 0.4),
+    inset 0 0 10px rgba(255, 230, 0, 0.15);
   backdrop-filter: blur(10px);
 }
 
@@ -183,7 +217,9 @@
 
 .comic-interactive:hover {
   transform: translateY(-3px);
-  box-shadow: 0 0 20px rgba(0, 245, 255, 0.5), 0 0 35px rgba(255, 0, 127, 0.3);
+  box-shadow:
+    0 0 20px rgba(0, 245, 255, 0.5),
+    0 0 35px rgba(255, 0, 127, 0.3);
   border-color: #00f5ff;
 }
 
@@ -191,45 +227,70 @@
   transform: translateY(1px);
 }
 
-/* Neon Text Shadows & Glows */
+/* =========================================================
+   NEON TEXT SHADOWS & GLOWS
+   ========================================================= */
+
 .neon-text-pink {
   color: #ffffff;
-  text-shadow: 0 0 8px rgba(255, 0, 127, 0.8), 0 0 20px rgba(255, 0, 127, 0.5);
+  text-shadow:
+    0 0 8px rgba(255, 0, 127, 0.8),
+    0 0 20px rgba(255, 0, 127, 0.5);
 }
 
 .neon-text-cyan {
   color: #ffffff;
-  text-shadow: 0 0 8px rgba(0, 245, 255, 0.8), 0 0 20px rgba(0, 245, 255, 0.5);
+  text-shadow:
+    0 0 8px rgba(0, 245, 255, 0.8),
+    0 0 20px rgba(0, 245, 255, 0.5);
 }
 
 .neon-text-yellow {
   color: #ffffff;
-  text-shadow: 0 0 8px rgba(255, 230, 0, 0.8), 0 0 20px rgba(255, 230, 0, 0.5);
+  text-shadow:
+    0 0 8px rgba(255, 230, 0, 0.8),
+    0 0 20px rgba(255, 230, 0, 0.5);
 }
 
-/* Cyber Grid & Ambient Scanlines */
+/* =========================================================
+   CYBER GRID & AMBIENT SCANLINES
+   ========================================================= */
+
 .cyber-grid {
   background-size: 40px 40px;
-  background-image: 
-    linear-gradient(to right, rgba(255, 0, 127, 0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 245, 255, 0.07) 1px, transparent 1px);
+  background-image:
+    linear-gradient(
+      to right,
+      rgba(255, 0, 127, 0.07) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(0, 245, 255, 0.07) 1px,
+      transparent 1px
+    );
 }
 
 .scanlines {
-  background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%, 
-    rgba(0, 0, 0, 0.25) 50%
-  ), linear-gradient(
-    90deg,
-    rgba(255, 0, 0, 0.03),
-    rgba(0, 255, 0, 0.01),
-    rgba(0, 0, 255, 0.03)
-  );
+  background:
+    linear-gradient(
+      rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.25) 50%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.03),
+      rgba(0, 255, 0, 0.01),
+      rgba(0, 0, 255, 0.03)
+    );
   background-size: 100% 3px, 6px 100%;
   pointer-events: none;
 }
 
-/* Custom Scrollbar */
+/* =========================================================
+   CUSTOM SCROLLBAR
+   ========================================================= */
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -247,4 +308,64 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #ff007f;
+}
+/* =========================================================
+   ADMIN LIGHT THEME OVERRIDES
+   ========================================================= */
+
+/* Light mode: make comic containers actually light */
+html.light .comic-border {
+  background: #ffffff;
+  border-color: #ff007f;
+  box-shadow:
+    0 0 14px rgba(255, 0, 127, 0.18),
+    inset 0 0 10px rgba(255, 0, 127, 0.06);
+}
+
+html.light .comic-border-sm {
+  background: #ffffff;
+  border-color: #00a8b5;
+  box-shadow:
+    0 0 10px rgba(0, 168, 181, 0.15);
+}
+
+html.light .comic-border-lg {
+  background: #ffffff;
+  border-color: #7c4dff;
+  box-shadow:
+    0 0 20px rgba(124, 77, 255, 0.15),
+    inset 0 0 12px rgba(124, 77, 255, 0.05);
+}
+
+html.light .comic-border-yellow {
+  background: #ffffff;
+  border-color: #d6b900;
+  box-shadow:
+    0 0 16px rgba(214, 185, 0, 0.15),
+    inset 0 0 10px rgba(214, 185, 0, 0.05);
+}
+
+html.light .comic-border-green {
+  background: #ffffff;
+  border-color: #00b84f;
+  box-shadow:
+    0 0 16px rgba(0, 184, 79, 0.15);
+}
+
+/* =========================================================
+   ADMIN LIGHT THEME - BODY
+   ========================================================= */
+
+html.light body {
+  background-color: #fff5f0;
+  color: #0d0714;
+}
+
+/* =========================================================
+   ADMIN DARK THEME
+   ========================================================= */
+
+html.dark body {
+  background-color: #0d0714;
+  color: #f8fafc;
 }

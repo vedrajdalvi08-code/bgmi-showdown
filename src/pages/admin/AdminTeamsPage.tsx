@@ -1,48 +1,103 @@
 import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
-import { Shield, Plus, Edit2, Trash2, Users, Search, X, Check, AlertTriangle } from 'lucide-react';
-import { Team, Player } from '../../types';
+import {
+  Shield,
+  Plus,
+  Edit2,
+  Trash2,
+  Users,
+  Search,
+  X,
+} from 'lucide-react';
+import { Team } from '../../types';
 import { getGroupOptions } from '../../utils/groups';
 
 export const AdminTeamsPage: React.FC = () => {
-  const { teams, settings, adminToken, showToast, refreshAll } = useTournament();
+  const {
+    teams,
+    settings,
+    adminToken,
+    showToast,
+    refreshAll,
+  } = useTournament();
+
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('all');
+
   const groupOptions = getGroupOptions(settings?.group_names);
 
-  // Modals state
+  // =========================================================
+  // MODAL STATE
+  // =========================================================
+
   const [showAddTeamModal, setShowAddTeamModal] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
-  const [managingPlayersTeam, setManagingPlayersTeam] = useState<Team | null>(null);
+  const [managingPlayersTeam, setManagingPlayersTeam] =
+    useState<Team | null>(null);
 
-  // Form states
+  // =========================================================
+  // TEAM FORM
+  // =========================================================
+
   const [teamName, setTeamName] = useState('');
   const [teamTag, setTeamTag] = useState('');
-  const [teamGroup, setTeamGroup] = useState<string>('grp_a');
-  const [teamStatus, setTeamStatus] = useState<string>('Registered');
+  const [teamGroup, setTeamGroup] =
+    useState<string>('grp_a');
+  const [teamStatus, setTeamStatus] =
+    useState<string>('Registered');
 
-  // Player Form
+  // =========================================================
+  // PLAYER FORM
+  // =========================================================
+
   const [playerName, setPlayerName] = useState('');
   const [playerIGN, setPlayerIGN] = useState('');
   const [playerUID, setPlayerUID] = useState('');
-  const [playerRole, setPlayerRole] = useState<'IGL' | 'Assaulter' | 'Sniper' | 'Support' | 'Substitute'>('Assaulter');
+  const [playerRole, setPlayerRole] = useState<
+    'IGL' | 'Assaulter' | 'Sniper' | 'Support' | 'Substitute'
+  >('Assaulter');
 
-  const filteredTeams = teams.filter(t => {
-    if (groupFilter !== 'all' && t.group_id !== groupFilter) return false;
+  // =========================================================
+  // FILTER TEAMS
+  // =========================================================
+
+  const filteredTeams = teams.filter((team) => {
     if (
-      search &&
-      !t.name.toLowerCase().includes(search.toLowerCase()) &&
-      !t.tag.toLowerCase().includes(search.toLowerCase())
+      groupFilter !== 'all' &&
+      team.group_id !== groupFilter
     ) {
       return false;
     }
+
+    if (
+      search &&
+      !team.name
+        .toLowerCase()
+        .includes(search.toLowerCase()) &&
+      !team.tag
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    ) {
+      return false;
+    }
+
     return true;
   });
 
-  const handleCreateTeam = async (e: React.FormEvent) => {
+  // =========================================================
+  // CREATE TEAM
+  // =========================================================
+
+  const handleCreateTeam = async (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
+
     if (!teamName || !teamTag) {
-      showToast('Team name and tag are required', 'error');
+      showToast(
+        'Team name and tag are required',
+        'error'
+      );
       return;
     }
 
@@ -51,400 +106,977 @@ export const AdminTeamsPage: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminToken}`
+          Authorization: `Bearer ${adminToken}`,
         },
         body: JSON.stringify({
           name: teamName,
           tag: teamTag,
           group_id: teamGroup,
-          status: teamStatus
-        })
+          status: teamStatus,
+        }),
       });
 
       const data = await res.json();
+
       if (!res.ok) {
-        showToast(data.error || 'Failed to create team', 'error');
+        showToast(
+          data.error || 'Failed to create team',
+          'error'
+        );
         return;
       }
 
-      showToast(`Squad "${teamName}" registered successfully!`, 'success');
+      showToast(
+        `Squad "${teamName}" registered successfully!`,
+        'success'
+      );
+
       setShowAddTeamModal(false);
       setTeamName('');
       setTeamTag('');
+
       refreshAll();
     } catch {
-      showToast('Error registering squad', 'error');
+      showToast(
+        'Error registering squad',
+        'error'
+      );
     }
   };
 
-  const handleUpdateTeam = async (e: React.FormEvent) => {
+  // =========================================================
+  // UPDATE TEAM
+  // =========================================================
+
+  const handleUpdateTeam = async (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
+
     if (!editingTeam) return;
 
     try {
-      const res = await fetch(`/api/admin/teams/${editingTeam.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminToken}`
-        },
-        body: JSON.stringify({
-          name: teamName,
-          tag: teamTag,
-          group_id: teamGroup,
-          status: teamStatus
-        })
-      });
+      const res = await fetch(
+        `/api/admin/teams/${editingTeam.id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${adminToken}`,
+          },
+          body: JSON.stringify({
+            name: teamName,
+            tag: teamTag,
+            group_id: teamGroup,
+            status: teamStatus,
+          }),
+        }
+      );
 
       if (!res.ok) {
-        showToast('Failed to update team', 'error');
+        showToast(
+          'Failed to update team',
+          'error'
+        );
         return;
       }
 
-      showToast(`Squad "${teamName}" updated successfully`, 'success');
+      showToast(
+        `Squad "${teamName}" updated successfully`,
+        'success'
+      );
+
       setEditingTeam(null);
+
       refreshAll();
     } catch {
-      showToast('Error updating squad', 'error');
+      showToast(
+        'Error updating squad',
+        'error'
+      );
     }
   };
 
-  const handleDeleteTeam = async (teamId: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete squad "${name}"? This removes all associated players and match records.`)) {
+  // =========================================================
+  // DELETE TEAM
+  // =========================================================
+
+  const handleDeleteTeam = async (
+    teamId: string,
+    name: string
+  ) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete squad "${name}"? This removes all associated players and match records.`
+      )
+    ) {
       return;
     }
 
     try {
-      const res = await fetch(`/api/admin/teams/${teamId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${adminToken}` }
-      });
+      const res = await fetch(
+        `/api/admin/teams/${teamId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+          },
+        }
+      );
 
       if (res.ok) {
-        showToast(`Squad "${name}" deleted.`, 'info');
+        showToast(
+          `Squad "${name}" deleted.`,
+          'info'
+        );
+
         refreshAll();
       }
     } catch {
-      showToast('Failed to delete squad', 'error');
+      showToast(
+        'Failed to delete squad',
+        'error'
+      );
     }
   };
 
-  const handleAddPlayer = async (e: React.FormEvent) => {
+  // =========================================================
+  // ADD PLAYER
+  // =========================================================
+
+  const handleAddPlayer = async (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
+
     if (!managingPlayersTeam) return;
+
     if (!playerName || !playerIGN) {
-      showToast('Real name and in-game name are required', 'error');
+      showToast(
+        'Real name and in-game name are required',
+        'error'
+      );
       return;
     }
 
     try {
-      const res = await fetch(`/api/admin/teams/${managingPlayersTeam.id}/players`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminToken}`
-        },
-        body: JSON.stringify({
-          name: playerName,
-          in_game_name: playerIGN,
-          in_game_id: playerUID,
-          role: playerRole
-        })
-      });
+      const res = await fetch(
+        `/api/admin/teams/${managingPlayersTeam.id}/players`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${adminToken}`,
+          },
+          body: JSON.stringify({
+            name: playerName,
+            in_game_name: playerIGN,
+            in_game_id: playerUID,
+            role: playerRole,
+          }),
+        }
+      );
 
       if (res.ok) {
-        showToast(`Player "${playerIGN}" added to ${managingPlayersTeam.name}!`, 'success');
+        showToast(
+          `Player "${playerIGN}" added to ${managingPlayersTeam.name}!`,
+          'success'
+        );
+
         setPlayerName('');
         setPlayerIGN('');
         setPlayerUID('');
+
         refreshAll();
-        // Update local state
-        const updatedTeam = teams.find(t => t.id === managingPlayersTeam.id);
-        if (updatedTeam) setManagingPlayersTeam(updatedTeam);
+
+        const updatedTeam = teams.find(
+          (team) =>
+            team.id === managingPlayersTeam.id
+        );
+
+        if (updatedTeam) {
+          setManagingPlayersTeam(updatedTeam);
+        }
       }
     } catch {
-      showToast('Failed to add player', 'error');
+      showToast(
+        'Failed to add player',
+        'error'
+      );
     }
   };
 
-  const handleRemovePlayer = async (playerId: string) => {
+  // =========================================================
+  // REMOVE PLAYER
+  // =========================================================
+
+  const handleRemovePlayer = async (
+    playerId: string
+  ) => {
     try {
-      const res = await fetch(`/api/admin/players/${playerId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${adminToken}` }
-      });
+      const res = await fetch(
+        `/api/admin/players/${playerId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+          },
+        }
+      );
 
       if (res.ok) {
-        showToast('Player removed.', 'info');
+        showToast(
+          'Player removed.',
+          'info'
+        );
+
         refreshAll();
       }
     } catch {
-      showToast('Failed to remove player', 'error');
+      showToast(
+        'Failed to remove player',
+        'error'
+      );
     }
   };
+
+  // =========================================================
+  // RENDER
+  // =========================================================
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+
+      {/* =====================================================
+          HEADER
+          ===================================================== */}
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-300 dark:border-zinc-800 pb-4">
         <div>
-          <h1 className="font-headline text-3xl text-white tracking-wider">
+          <h1 className="font-headline text-3xl text-black dark:text-white tracking-wider">
             SQUAD & ROSTER MANAGEMENT
           </h1>
-          <p className="text-xs font-mono text-zinc-400 mt-0.5">
-            Total Squads: <strong className="text-[#00f5ff]">{teams.length}</strong> / {settings?.max_teams || 48} target
+
+          <p className="text-xs font-mono text-zinc-600 dark:text-zinc-400 mt-0.5">
+            Total Squads:{' '}
+            <strong className="text-[#009fbd] dark:text-[#00f5ff]">
+              {teams.length}
+            </strong>{' '}
+            / {settings?.max_teams || 48} target
           </p>
         </div>
 
         <button
+          type="button"
           onClick={() => {
             setTeamName('');
             setTeamTag('');
-            setTeamGroup(groupOptions[0]?.id || 'grp_a');
+            setTeamGroup(
+              groupOptions[0]?.id || 'grp_a'
+            );
             setTeamStatus('Registered');
             setShowAddTeamModal(true);
           }}
           className="px-4 py-2 bg-[#ff007f] hover:bg-[#ff1a8c] text-white font-headline text-sm tracking-wider comic-border-sm flex items-center gap-2 cursor-pointer transition-colors"
         >
-          <Plus className="w-4 h-4" /> ADD NEW SQUAD
+          <Plus className="w-4 h-4" />
+          ADD NEW SQUAD
         </button>
       </div>
 
-      {/* Filter and Search */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#0e061c] p-4 border border-zinc-800">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-zinc-500">GROUP:</span>
-          {['all', ...groupOptions.map(group => group.id)].map(g => (
+      {/* =====================================================
+          FILTER + SEARCH
+          ===================================================== */}
+
+      <div
+        className="
+          flex
+          flex-col
+          sm:flex-row
+          items-stretch
+          sm:items-center
+          justify-between
+          gap-4
+          bg-white dark:bg-[#0e061c]
+          p-4
+          border
+          border-zinc-300 dark:border-zinc-800
+          transition-colors
+        "
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-mono text-zinc-500 dark:text-zinc-500">
+            GROUP:
+          </span>
+
+          {[
+            'all',
+            ...groupOptions.map(
+              (group) => group.id
+            ),
+          ].map((groupId) => (
             <button
-              key={g}
-              onClick={() => setGroupFilter(g)}
-              className={`px-3 py-1 font-headline text-xs tracking-wider cursor-pointer ${
-                groupFilter === g ? 'bg-[#00f5ff] text-black font-bold' : 'text-zinc-400 bg-white/5'
-              }`}
+              key={groupId}
+              type="button"
+              onClick={() =>
+                setGroupFilter(groupId)
+              }
+              className={`
+                px-3
+                py-1
+                font-headline
+                text-xs
+                tracking-wider
+                cursor-pointer
+                transition-colors
+                ${
+                  groupFilter === groupId
+                    ? 'bg-[#00f5ff] text-black font-bold'
+                    : 'text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10'
+                }
+              `}
             >
-              {g === 'all' ? 'ALL' : groupOptions.find(group => group.id === g)?.name.toUpperCase()}
+              {groupId === 'all'
+                ? 'ALL'
+                : groupOptions
+                    .find(
+                      (group) =>
+                        group.id === groupId
+                    )
+                    ?.name.toUpperCase()}
             </button>
           ))}
         </div>
 
         <div className="relative min-w-60">
           <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+
           <input
             type="text"
             placeholder="Search teams..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[#140b28] border border-zinc-700 text-xs pl-8 pr-3 py-1.5 text-white placeholder-zinc-500 outline-none"
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
+            className="
+              w-full
+              bg-zinc-50 dark:bg-[#140b28]
+              border
+              border-zinc-300 dark:border-zinc-700
+              text-black dark:text-white
+              text-xs
+              pl-8
+              pr-3
+              py-1.5
+              placeholder-zinc-500
+              outline-none
+              focus:border-[#00f5ff]
+              transition-colors
+            "
           />
         </div>
       </div>
 
-      {/* Squads Table */}
-      <div className="bg-[#0b0518] comic-border overflow-x-auto">
+      {/* =====================================================
+          SQUADS TABLE
+          ===================================================== */}
+
+      <div
+        className="
+          bg-white dark:bg-[#0b0518]
+          comic-border
+          overflow-x-auto
+          transition-colors
+        "
+      >
         <table className="w-full text-left border-collapse text-sm">
+
           <thead>
-            <tr className="bg-[#140b29] border-b border-zinc-800 text-xs font-headline tracking-widest text-[#00f5ff]">
-              <th className="py-3 px-4">TAG</th>
-              <th className="py-3 px-4">SQUAD NAME</th>
-              <th className="py-3 px-4 text-center">GROUP</th>
-              <th className="py-3 px-4 text-center">STATUS</th>
-              <th className="py-3 px-4 text-center">ROSTER</th>
-              <th className="py-3 px-4 text-right">ACTIONS</th>
+            <tr
+              className="
+                bg-zinc-100 dark:bg-[#140b29]
+                border-b
+                border-zinc-300 dark:border-zinc-800
+                text-xs
+                font-headline
+                tracking-widest
+                text-[#009fbd] dark:text-[#00f5ff]
+              "
+            >
+              <th className="py-3 px-4">
+                TAG
+              </th>
+
+              <th className="py-3 px-4">
+                SQUAD NAME
+              </th>
+
+              <th className="py-3 px-4 text-center">
+                GROUP
+              </th>
+
+              <th className="py-3 px-4 text-center">
+                STATUS
+              </th>
+
+              <th className="py-3 px-4 text-center">
+                ROSTER
+              </th>
+
+              <th className="py-3 px-4 text-right">
+                ACTIONS
+              </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-900 font-display">
-            {filteredTeams.map(team => (
-              <tr key={team.id} className="hover:bg-white/5 transition-colors">
-                <td className="py-3 px-4 font-mono font-bold text-[#ff007f]">
-                  {team.tag}
-                </td>
-                <td className="py-3 px-4 font-headline text-lg text-white">
-                  {team.name}
-                </td>
-                <td className="py-3 px-4 text-center">
-                  <span className="px-2 py-0.5 bg-white/10 text-zinc-300 text-xs font-mono">
-                    {team.group_name || groupOptions.find(group => group.id === team.group_id)?.name || 'UNASSIGNED'}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-center">
-                  <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs font-mono">
-                    {team.status}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-center font-mono text-xs text-zinc-300">
-                  {team.players?.length || 0} Players
-                </td>
-                <td className="py-3 px-4 text-right space-x-2">
-                  <button
-                    onClick={() => setManagingPlayersTeam(team)}
-                    className="p-1.5 bg-[#1f103d] hover:bg-[#2d1757] text-[#00f5ff] border border-zinc-700 cursor-pointer"
-                    title="Manage Roster"
-                  >
-                    <Users className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditingTeam(team);
-                      setTeamName(team.name);
-                      setTeamTag(team.tag);
-                      setTeamGroup(team.group_id || groupOptions[0]?.id || 'grp_a');
-                      setTeamStatus(team.status);
-                    }}
-                    className="p-1.5 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-zinc-700 cursor-pointer"
-                    title="Edit Details"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteTeam(team.id, team.name)}
-                    className="p-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-800/40 cursor-pointer"
-                    title="Delete Squad"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+
+          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-900 font-display">
+            {filteredTeams.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="
+                    py-10
+                    text-center
+                    font-mono
+                    text-xs
+                    text-zinc-500
+                  "
+                >
+                  NO SQUADS FOUND
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredTeams.map((team) => (
+                <tr
+                  key={team.id}
+                  className="
+                    hover:bg-black/5
+                    dark:hover:bg-white/5
+                    transition-colors
+                  "
+                >
+                  <td className="py-3 px-4 font-mono font-bold text-[#d9006c] dark:text-[#ff007f]">
+                    {team.tag}
+                  </td>
+
+                  <td className="py-3 px-4 font-headline text-lg text-black dark:text-white">
+                    {team.name}
+                  </td>
+
+                  <td className="py-3 px-4 text-center">
+                    <span
+                      className="
+                        px-2
+                        py-0.5
+                        bg-zinc-100 dark:bg-white/10
+                        text-zinc-700 dark:text-zinc-300
+                        text-xs
+                        font-mono
+                      "
+                    >
+                      {team.group_name ||
+                        groupOptions.find(
+                          (group) =>
+                            group.id ===
+                            team.group_id
+                        )?.name ||
+                        'UNASSIGNED'}
+                    </span>
+                  </td>
+
+                  <td className="py-3 px-4 text-center">
+                    <span
+                      className="
+                        px-2
+                        py-0.5
+                        bg-emerald-100 dark:bg-emerald-500/20
+                        text-emerald-700 dark:text-emerald-400
+                        text-xs
+                        font-mono
+                      "
+                    >
+                      {team.status}
+                    </span>
+                  </td>
+
+                  <td className="py-3 px-4 text-center font-mono text-xs text-zinc-600 dark:text-zinc-300">
+                    {team.players?.length || 0}{' '}
+                    Players
+                  </td>
+
+                  <td className="py-3 px-4 text-right space-x-2">
+
+                    {/* MANAGE ROSTER */}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setManagingPlayersTeam(
+                          team
+                        )
+                      }
+                      className="
+                        p-1.5
+                        bg-cyan-50 dark:bg-[#1f103d]
+                        hover:bg-cyan-100 dark:hover:bg-[#2d1757]
+                        text-[#008da8] dark:text-[#00f5ff]
+                        border
+                        border-cyan-200 dark:border-zinc-700
+                        cursor-pointer
+                        transition-colors
+                      "
+                      title="Manage Roster"
+                    >
+                      <Users className="w-4 h-4" />
+                    </button>
+
+                    {/* EDIT */}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingTeam(team);
+                        setTeamName(team.name);
+                        setTeamTag(team.tag);
+                        setTeamGroup(
+                          team.group_id ||
+                            groupOptions[0]?.id ||
+                            'grp_a'
+                        );
+                        setTeamStatus(
+                          team.status
+                        );
+                      }}
+                      className="
+                        p-1.5
+                        bg-zinc-100 dark:bg-white/5
+                        hover:bg-zinc-200 dark:hover:bg-white/10
+                        text-zinc-700 dark:text-zinc-300
+                        hover:text-black dark:hover:text-white
+                        border
+                        border-zinc-300 dark:border-zinc-700
+                        cursor-pointer
+                        transition-colors
+                      "
+                      title="Edit Details"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+
+                    {/* DELETE */}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDeleteTeam(
+                          team.id,
+                          team.name
+                        )
+                      }
+                      className="
+                        p-1.5
+                        bg-red-50 dark:bg-red-950/40
+                        hover:bg-red-100 dark:hover:bg-red-900/60
+                        text-red-600 dark:text-red-400
+                        border
+                        border-red-200 dark:border-red-800/40
+                        cursor-pointer
+                        transition-colors
+                      "
+                      title="Delete Squad"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* CREATE / EDIT TEAM MODAL */}
+      {/* =====================================================
+          CREATE / EDIT TEAM MODAL
+          ===================================================== */}
+
       {(showAddTeamModal || editingTeam) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#0d061c] comic-border-cyan p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h3 className="font-headline text-2xl text-white">
-                {editingTeam ? 'EDIT SQUAD DETAILS' : 'REGISTER NEW SQUAD'}
+
+          <div
+            className="
+              w-full
+              max-w-md
+              bg-white dark:bg-[#0d061c]
+              border-2
+              border-[#00f5ff]
+              p-6
+              space-y-4
+              shadow-[0_0_30px_rgba(0,245,255,0.15)]
+              dark:shadow-[0_0_30px_rgba(0,245,255,0.25)]
+            "
+          >
+
+            {/* MODAL HEADER */}
+
+            <div className="flex items-center justify-between border-b border-zinc-300 dark:border-zinc-800 pb-3">
+
+              <h3 className="font-headline text-2xl text-black dark:text-white">
+                {editingTeam
+                  ? 'EDIT SQUAD DETAILS'
+                  : 'REGISTER NEW SQUAD'}
               </h3>
+
               <button
+                type="button"
                 onClick={() => {
                   setShowAddTeamModal(false);
                   setEditingTeam(null);
                 }}
-                className="p-1 text-zinc-400 hover:text-white"
+                className="
+                  p-1
+                  text-zinc-500 dark:text-zinc-400
+                  hover:text-black dark:hover:text-white
+                  cursor-pointer
+                "
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={editingTeam ? handleUpdateTeam : handleCreateTeam} className="space-y-4">
+            {/* FORM */}
+
+            <form
+              onSubmit={
+                editingTeam
+                  ? handleUpdateTeam
+                  : handleCreateTeam
+              }
+              className="space-y-4"
+            >
+
+              {/* SQUAD NAME */}
+
               <div>
-                <label className="block text-xs font-mono text-zinc-400 uppercase mb-1">Squad Name</label>
+                <label className="block text-xs font-mono text-zinc-600 dark:text-zinc-400 uppercase mb-1">
+                  Squad Name
+                </label>
+
                 <input
                   type="text"
                   required
                   value={teamName}
-                  onChange={e => setTeamName(e.target.value)}
+                  onChange={(e) =>
+                    setTeamName(e.target.value)
+                  }
                   placeholder="e.g. Team Soul"
-                  className="w-full bg-[#150a2e] border border-zinc-700 text-white p-2 text-sm outline-none"
+                  className="
+                    w-full
+                    bg-zinc-50 dark:bg-[#150a2e]
+                    border
+                    border-zinc-300 dark:border-zinc-700
+                    text-black dark:text-white
+                    p-2
+                    text-sm
+                    outline-none
+                    focus:border-[#00f5ff]
+                  "
                 />
               </div>
 
+              {/* SQUAD TAG */}
+
               <div>
-                <label className="block text-xs font-mono text-zinc-400 uppercase mb-1">Squad Tag (Short code)</label>
+                <label className="block text-xs font-mono text-zinc-600 dark:text-zinc-400 uppercase mb-1">
+                  Squad Tag (Short code)
+                </label>
+
                 <input
                   type="text"
                   required
                   value={teamTag}
-                  onChange={e => setTeamTag(e.target.value)}
+                  onChange={(e) =>
+                    setTeamTag(e.target.value)
+                  }
                   placeholder="e.g. SOUL"
-                  className="w-full bg-[#150a2e] border border-zinc-700 text-white p-2 text-sm outline-none uppercase"
+                  className="
+                    w-full
+                    bg-zinc-50 dark:bg-[#150a2e]
+                    border
+                    border-zinc-300 dark:border-zinc-700
+                    text-black dark:text-white
+                    p-2
+                    text-sm
+                    outline-none
+                    focus:border-[#00f5ff]
+                    uppercase
+                  "
                 />
               </div>
 
+              {/* GROUP */}
+
               <div>
-                <label className="block text-xs font-mono text-zinc-400 uppercase mb-1">Assigned Group</label>
+                <label className="block text-xs font-mono text-zinc-600 dark:text-zinc-400 uppercase mb-1">
+                  Assigned Group
+                </label>
+
                 <select
                   value={teamGroup}
-                  onChange={e => setTeamGroup(e.target.value)}
-                  className="w-full bg-[#150a2e] border border-zinc-700 text-white p-2 text-sm outline-none"
+                  onChange={(e) =>
+                    setTeamGroup(e.target.value)
+                  }
+                  className="
+                    w-full
+                    bg-zinc-50 dark:bg-[#150a2e]
+                    border
+                    border-zinc-300 dark:border-zinc-700
+                    text-black dark:text-white
+                    p-2
+                    text-sm
+                    outline-none
+                    focus:border-[#00f5ff]
+                  "
                 >
-                  {groupOptions.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+                  {groupOptions.map((group) => (
+                    <option
+                      key={group.id}
+                      value={group.id}
+                    >
+                      {group.name}
+                    </option>
+                  ))}
                 </select>
               </div>
+
+              {/* STATUS */}
 
               <div>
-                <label className="block text-xs font-mono text-zinc-400 uppercase mb-1">Status</label>
+                <label className="block text-xs font-mono text-zinc-600 dark:text-zinc-400 uppercase mb-1">
+                  Status
+                </label>
+
                 <select
                   value={teamStatus}
-                  onChange={e => setTeamStatus(e.target.value)}
-                  className="w-full bg-[#150a2e] border border-zinc-700 text-white p-2 text-sm outline-none"
+                  onChange={(e) =>
+                    setTeamStatus(e.target.value)
+                  }
+                  className="
+                    w-full
+                    bg-zinc-50 dark:bg-[#150a2e]
+                    border
+                    border-zinc-300 dark:border-zinc-700
+                    text-black dark:text-white
+                    p-2
+                    text-sm
+                    outline-none
+                    focus:border-[#00f5ff]
+                  "
                 >
-                  <option value="Registered">Registered</option>
-                  <option value="Checked In">Checked In</option>
-                  <option value="Qualified">Qualified</option>
-                  <option value="Eliminated">Eliminated</option>
-                  <option value="Disqualified">Disqualified</option>
+                  <option value="Registered">
+                    Registered
+                  </option>
+                  <option value="Checked In">
+                    Checked In
+                  </option>
+                  <option value="Qualified">
+                    Qualified
+                  </option>
+                  <option value="Eliminated">
+                    Eliminated
+                  </option>
+                  <option value="Disqualified">
+                    Disqualified
+                  </option>
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+              {/* BUTTONS */}
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-300 dark:border-zinc-800">
+
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddTeamModal(false);
                     setEditingTeam(null);
                   }}
-                  className="px-4 py-2 bg-zinc-800 text-zinc-300 font-headline text-sm"
+                  className="
+                    px-4
+                    py-2
+                    bg-zinc-200 dark:bg-zinc-800
+                    hover:bg-zinc-300 dark:hover:bg-zinc-700
+                    text-zinc-800 dark:text-zinc-300
+                    font-headline
+                    text-sm
+                    cursor-pointer
+                  "
                 >
                   CANCEL
                 </button>
+
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#ff007f] hover:bg-[#ff1a8c] text-white font-headline text-sm"
+                  className="
+                    px-5
+                    py-2
+                    bg-[#ff007f]
+                    hover:bg-[#ff1a8c]
+                    text-white
+                    font-headline
+                    text-sm
+                    cursor-pointer
+                  "
                 >
-                  {editingTeam ? 'SAVE CHANGES' : 'CREATE SQUAD'}
+                  {editingTeam
+                    ? 'SAVE CHANGES'
+                    : 'CREATE SQUAD'}
                 </button>
+
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* MANAGE PLAYERS MODAL */}
+      {/* =====================================================
+          MANAGE PLAYERS MODAL
+          ===================================================== */}
+
       {managingPlayersTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-[#0d061c] comic-border-xl p-6 space-y-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+
+          <div
+            className="
+              w-full
+              max-w-2xl
+              bg-white dark:bg-[#0d061c]
+              border-2
+              border-[#00f5ff]
+              p-6
+              space-y-6
+              max-h-[90vh]
+              overflow-y-auto
+              shadow-[0_0_30px_rgba(0,245,255,0.15)]
+              dark:shadow-[0_0_30px_rgba(0,245,255,0.25)]
+            "
+          >
+
+            {/* MODAL HEADER */}
+
+            <div className="flex items-center justify-between border-b border-zinc-300 dark:border-zinc-800 pb-3">
+
               <div>
-                <h3 className="font-headline text-2xl text-white">
-                  ROSTER: {managingPlayersTeam.name} ({managingPlayersTeam.tag})
+                <h3 className="font-headline text-2xl text-black dark:text-white">
+                  ROSTER: {managingPlayersTeam.name}{' '}
+                  ({managingPlayersTeam.tag})
                 </h3>
-                <p className="text-xs font-mono text-zinc-400">Add or manage players for this squad</p>
+
+                <p className="text-xs font-mono text-zinc-600 dark:text-zinc-400">
+                  Add or manage players for this squad
+                </p>
               </div>
+
               <button
-                onClick={() => setManagingPlayersTeam(null)}
-                className="p-1 text-zinc-400 hover:text-white"
+                type="button"
+                onClick={() =>
+                  setManagingPlayersTeam(null)
+                }
+                className="
+                  p-1
+                  text-zinc-500 dark:text-zinc-400
+                  hover:text-black dark:hover:text-white
+                  cursor-pointer
+                "
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            {/* Current Players List */}
+            {/* =================================================
+                CURRENT PLAYERS
+                ================================================= */}
+
             <div className="space-y-2">
-              <h4 className="font-headline text-lg text-[#00f5ff]">REGISTERED PLAYERS</h4>
-              <div className="divide-y divide-zinc-800 border border-zinc-800 bg-[#080313]">
-                {managingPlayersTeam.players && managingPlayersTeam.players.length > 0 ? (
-                  managingPlayersTeam.players.map(p => (
-                    <div key={p.id} className="p-3 flex items-center justify-between">
-                      <div>
-                        <span className="font-headline text-lg text-white">{p.in_game_name}</span>
-                        <span className="ml-2 px-1.5 py-0.5 bg-white/10 text-[10px] font-mono text-zinc-300">
-                          {p.role}
-                        </span>
-                        <div className="text-xs font-display text-zinc-400">
-                          Real: {p.name} • UID: {p.in_game_id || 'N/A'}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleRemovePlayer(p.id)}
-                        className="p-1 text-red-400 hover:bg-red-950/40 border border-red-900 cursor-pointer"
+
+              <h4 className="font-headline text-lg text-[#009fbd] dark:text-[#00f5ff]">
+                REGISTERED PLAYERS
+              </h4>
+
+              <div
+                className="
+                  divide-y
+                  divide-zinc-200 dark:divide-zinc-800
+                  border
+                  border-zinc-300 dark:border-zinc-800
+                  bg-zinc-50 dark:bg-[#080313]
+                "
+              >
+                {managingPlayersTeam.players &&
+                managingPlayersTeam.players.length >
+                  0 ? (
+                  managingPlayersTeam.players.map(
+                    (player) => (
+                      <div
+                        key={player.id}
+                        className="
+                          p-3
+                          flex
+                          items-center
+                          justify-between
+                          gap-3
+                        "
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))
+                        <div className="min-w-0">
+
+                          <span className="font-headline text-lg text-black dark:text-white">
+                            {player.in_game_name}
+                          </span>
+
+                          <span
+                            className="
+                              ml-2
+                              px-1.5
+                              py-0.5
+                              bg-zinc-200 dark:bg-white/10
+                              text-[10px]
+                              font-mono
+                              text-zinc-700 dark:text-zinc-300
+                            "
+                          >
+                            {player.role}
+                          </span>
+
+                          <div className="text-xs font-display text-zinc-600 dark:text-zinc-400">
+                            Real: {player.name} • UID:{' '}
+                            {player.in_game_id || 'N/A'}
+                          </div>
+
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleRemovePlayer(
+                              player.id
+                            )
+                          }
+                          className="
+                            p-1
+                            text-red-600 dark:text-red-400
+                            hover:bg-red-100 dark:hover:bg-red-950/40
+                            border
+                            border-red-200 dark:border-red-900
+                            cursor-pointer
+                            shrink-0
+                          "
+                          title="Remove Player"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )
+                  )
                 ) : (
                   <div className="p-4 text-center text-xs text-zinc-500 font-mono">
                     No players assigned yet.
@@ -453,75 +1085,212 @@ export const AdminTeamsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Add Player Form */}
-            <form onSubmit={handleAddPlayer} className="bg-[#120726] p-4 border border-zinc-800 space-y-3">
-              <h4 className="font-headline text-lg text-[#ff007f]">ADD PLAYER TO SQUAD</h4>
+            {/* =================================================
+                ADD PLAYER FORM
+                ================================================= */}
+
+            <form
+              onSubmit={handleAddPlayer}
+              className="
+                bg-zinc-50 dark:bg-[#120726]
+                p-4
+                border
+                border-zinc-300 dark:border-zinc-800
+                space-y-3
+              "
+            >
+              <h4 className="font-headline text-lg text-[#d9006c] dark:text-[#ff007f]">
+                ADD PLAYER TO SQUAD
+              </h4>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                {/* IGN */}
+
                 <div>
-                  <label className="block text-[11px] font-mono text-zinc-400 uppercase">In-Game Name (IGN)</label>
+                  <label className="block text-[11px] font-mono text-zinc-600 dark:text-zinc-400 uppercase">
+                    In-Game Name (IGN)
+                  </label>
+
                   <input
                     type="text"
                     required
                     placeholder="e.g. Jonathan"
                     value={playerIGN}
-                    onChange={e => setPlayerIGN(e.target.value)}
-                    className="w-full bg-[#080313] border border-zinc-700 text-white p-1.5 text-xs outline-none"
+                    onChange={(e) =>
+                      setPlayerIGN(e.target.value)
+                    }
+                    className="
+                      w-full
+                      bg-white dark:bg-[#080313]
+                      border
+                      border-zinc-300 dark:border-zinc-700
+                      text-black dark:text-white
+                      p-1.5
+                      text-xs
+                      outline-none
+                      focus:border-[#00f5ff]
+                    "
                   />
                 </div>
+
+                {/* REAL NAME */}
+
                 <div>
-                  <label className="block text-[11px] font-mono text-zinc-400 uppercase">Real Name</label>
+                  <label className="block text-[11px] font-mono text-zinc-600 dark:text-zinc-400 uppercase">
+                    Real Name
+                  </label>
+
                   <input
                     type="text"
                     required
                     placeholder="e.g. Jonathan Amaral"
                     value={playerName}
-                    onChange={e => setPlayerName(e.target.value)}
-                    className="w-full bg-[#080313] border border-zinc-700 text-white p-1.5 text-xs outline-none"
+                    onChange={(e) =>
+                      setPlayerName(e.target.value)
+                    }
+                    className="
+                      w-full
+                      bg-white dark:bg-[#080313]
+                      border
+                      border-zinc-300 dark:border-zinc-700
+                      text-black dark:text-white
+                      p-1.5
+                      text-xs
+                      outline-none
+                      focus:border-[#00f5ff]
+                    "
                   />
                 </div>
+
+                {/* UID */}
+
                 <div>
-                  <label className="block text-[11px] font-mono text-zinc-400 uppercase">In-Game UID</label>
+                  <label className="block text-[11px] font-mono text-zinc-600 dark:text-zinc-400 uppercase">
+                    In-Game UID
+                  </label>
+
                   <input
                     type="text"
                     placeholder="e.g. 5123456789"
                     value={playerUID}
-                    onChange={e => setPlayerUID(e.target.value)}
-                    className="w-full bg-[#080313] border border-zinc-700 text-white p-1.5 text-xs outline-none"
+                    onChange={(e) =>
+                      setPlayerUID(e.target.value)
+                    }
+                    className="
+                      w-full
+                      bg-white dark:bg-[#080313]
+                      border
+                      border-zinc-300 dark:border-zinc-700
+                      text-black dark:text-white
+                      p-1.5
+                      text-xs
+                      outline-none
+                      focus:border-[#00f5ff]
+                    "
                   />
                 </div>
+
+                {/* ROLE */}
+
                 <div>
-                  <label className="block text-[11px] font-mono text-zinc-400 uppercase">Combat Role</label>
+                  <label className="block text-[11px] font-mono text-zinc-600 dark:text-zinc-400 uppercase">
+                    Combat Role
+                  </label>
+
                   <select
                     value={playerRole}
-                    onChange={e => setPlayerRole(e.target.value as any)}
-                    className="w-full bg-[#080313] border border-zinc-700 text-white p-1.5 text-xs outline-none"
+                    onChange={(e) =>
+                      setPlayerRole(
+                        e.target.value as
+                          | 'IGL'
+                          | 'Assaulter'
+                          | 'Sniper'
+                          | 'Support'
+                          | 'Substitute'
+                      )
+                    }
+                    className="
+                      w-full
+                      bg-white dark:bg-[#080313]
+                      border
+                      border-zinc-300 dark:border-zinc-700
+                      text-black dark:text-white
+                      p-1.5
+                      text-xs
+                      outline-none
+                      focus:border-[#00f5ff]
+                    "
                   >
-                    <option value="Assaulter">Assaulter</option>
-                    <option value="IGL">IGL (In-Game Leader)</option>
-                    <option value="Sniper">Sniper</option>
-                    <option value="Support">Support</option>
-                    <option value="Substitute">Substitute</option>
+                    <option value="Assaulter">
+                      Assaulter
+                    </option>
+
+                    <option value="IGL">
+                      IGL (In-Game Leader)
+                    </option>
+
+                    <option value="Sniper">
+                      Sniper
+                    </option>
+
+                    <option value="Support">
+                      Support
+                    </option>
+
+                    <option value="Substitute">
+                      Substitute
+                    </option>
                   </select>
                 </div>
               </div>
+
               <div className="flex justify-end pt-2">
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-[#00f5ff] hover:bg-[#3bf6ff] text-black font-headline text-xs tracking-wider cursor-pointer"
+                  className="
+                    px-4
+                    py-1.5
+                    bg-[#00f5ff]
+                    hover:bg-[#3bf6ff]
+                    text-black
+                    font-headline
+                    text-xs
+                    tracking-wider
+                    cursor-pointer
+                  "
                 >
                   ADD PLAYER
                 </button>
               </div>
             </form>
 
+            {/* =================================================
+                DONE
+                ================================================= */}
+
             <div className="flex justify-end pt-2">
               <button
-                onClick={() => setManagingPlayersTeam(null)}
-                className="px-5 py-2 bg-white text-black font-headline text-sm"
+                type="button"
+                onClick={() =>
+                  setManagingPlayersTeam(null)
+                }
+                className="
+                  px-5
+                  py-2
+                  bg-black
+                  dark:bg-white
+                  text-white
+                  dark:text-black
+                  font-headline
+                  text-sm
+                  cursor-pointer
+                "
               >
                 DONE
               </button>
             </div>
+
           </div>
         </div>
       )}

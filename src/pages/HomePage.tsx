@@ -69,7 +69,7 @@ export const HomePage: React.FC = () => {
           {/* Main Massive Title */}
           <h1 className="font-headline text-5xl sm:text-7xl md:text-8xl tracking-wider text-zinc-950 dark:text-white uppercase leading-none">
             <span className="block drop-shadow-[2px_2px_0px_#00E5FF]">
-              {settings?.name || 'BGMI SHOWDOWN'}
+              TECHNOVA 4.0
             </span>
             <span className="inline-block mt-3 px-4 py-1 bg-[#FFD54F] text-black border-3 border-black shadow-[4px_4px_0px_0px_#000] text-2xl sm:text-4xl md:text-5xl font-headline tracking-wider">
               {settings?.tagline || 'DROP. SURVIVE. DOMINATE.'}

@@ -1,8 +1,24 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { TournamentSettings, Team, Match, LeaderboardRow, TournamentRule } from '../types';
-import { DEFAULT_SETTINGS, DEFAULT_RULES, DEFAULT_STATS } from '../data/defaults';
-import { safeFetchJson } from '../utils/api';
-import { groupId } from '../utils/groups';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import {
+  TournamentSettings,
+  Team,
+  Match,
+  LeaderboardRow,
+  TournamentRule,
+} from "../types";
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_RULES,
+  DEFAULT_STATS,
+} from "../data/defaults";
+import { safeFetchJson } from "../utils/api";
+import { groupId } from "../utils/groups";
 
 interface TournamentContextType {
   settings: TournamentSettings | null;
@@ -19,7 +35,12 @@ interface TournamentContextType {
   teams: Team[];
   matches: Match[];
   leaderboard: LeaderboardRow[];
-  leaderboardMatches: Array<{ id: string; match_number: number; name: string; map: string }>;
+  leaderboardMatches: Array<{
+    id: string;
+    match_number: number;
+    name: string;
+    map: string;
+  }>;
   rules: TournamentRule[];
   loading: boolean;
   activeTab: string;
@@ -28,8 +49,8 @@ interface TournamentContextType {
   setSelectedTeamId: (id: string | null) => void;
   selectedMatchId: string | null;
   setSelectedMatchId: (id: string | null) => void;
-  toast: { message: string; type: 'success' | 'error' | 'info' } | null;
-  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  toast: { message: string; type: "success" | "error" | "info" } | null;
+  showToast: (message: string, type?: "success" | "error" | "info") => void;
   // Admin State
   isAdmin: boolean;
   isAdminAuthenticated: boolean;
@@ -37,120 +58,195 @@ interface TournamentContextType {
   loginAdmin: (token: string) => void;
   logoutAdmin: () => Promise<void>;
   refreshAll: () => Promise<void>;
-  fetchLeaderboard: (stage: 'group' | 'finals', groupId?: string) => Promise<{
+  fetchLeaderboard: (
+    stage: "group" | "finals",
+    groupId?: string,
+  ) => Promise<{
     leaderboard: LeaderboardRow[];
-    matches: Array<{ id: string; match_number: number; name: string; map: string }>;
+    matches: Array<{
+      id: string;
+      match_number: number;
+      name: string;
+      map: string;
+    }>;
     qualifiersCount: number;
   }>;
   // Theme Management
-  theme: 'dark' | 'light';
+  theme: "dark" | "light";
   toggleTheme: () => void;
-  setTheme: (theme: 'dark' | 'light') => void;
+  setTheme: (theme: "dark" | "light") => void;
 }
 
 const TournamentContext = createContext<TournamentContextType | null>(null);
 
-export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
+export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [theme, setThemeState] = useState<"dark" | "light">(() => {
     try {
-      const saved = localStorage.getItem('bgmi_theme');
-      if (saved === 'dark' || saved === 'light') return saved;
+      const saved = localStorage.getItem("bgmi_theme");
+      if (saved === "dark" || saved === "light") return saved;
     } catch {
       // ignore
     }
-    return 'dark'; // Default to Vice Noir dark
+    return "dark"; // Default to Vice Noir dark
   });
 
-  const setTheme = useCallback((newTheme: 'dark' | 'light') => {
+  const setTheme = useCallback((newTheme: "dark" | "light") => {
     setThemeState(newTheme);
     try {
-      localStorage.setItem('bgmi_theme', newTheme);
+      localStorage.setItem("bgmi_theme", newTheme);
     } catch {
       // ignore
     }
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-      document.body.classList.add('dark');
-      document.body.classList.remove('light');
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+      document.body.classList.add("dark");
+      document.body.classList.remove("light");
     } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-      document.body.classList.remove('dark');
-      document.body.classList.add('light');
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+      document.body.classList.remove("dark");
+      document.body.classList.add("light");
     }
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setThemeState(prevTheme => {
-      const nextTheme = prevTheme === 'dark' ? 'light' : 'dark';
+    setThemeState((prevTheme) => {
+      const nextTheme = prevTheme === "dark" ? "light" : "dark";
       try {
-        localStorage.setItem('bgmi_theme', nextTheme);
+        localStorage.setItem("bgmi_theme", nextTheme);
       } catch {
         // ignore
       }
-      if (nextTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-        document.body.classList.add('dark');
-        document.body.classList.remove('light');
+      if (nextTheme === "dark") {
+        document.documentElement.classList.add("dark");
+        document.documentElement.classList.remove("light");
+        document.body.classList.add("dark");
+        document.body.classList.remove("light");
       } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-        document.body.classList.remove('dark');
-        document.body.classList.add('light');
+        document.documentElement.classList.remove("dark");
+        document.documentElement.classList.add("light");
+        document.body.classList.remove("dark");
+        document.body.classList.add("light");
       }
       return nextTheme;
     });
   }, []);
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-      document.body.classList.add('dark');
-      document.body.classList.remove('light');
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+      document.body.classList.add("dark");
+      document.body.classList.remove("light");
     } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-      document.body.classList.remove('dark');
-      document.body.classList.add('light');
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+      document.body.classList.remove("dark");
+      document.body.classList.add("light");
     }
   }, [theme]);
 
-  const [settings, setSettings] = useState<TournamentSettings | null>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<TournamentSettings | null>(
+    DEFAULT_SETTINGS,
+  );
   const [stats, setStats] = useState<any>(DEFAULT_STATS);
   const [nextMatch, setNextMatch] = useState<Match | null>(null);
   const [recentMatch, setRecentMatch] = useState<Match | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
-  const [leaderboardMatches, setLeaderboardMatches] = useState<Array<{ id: string; match_number: number; name: string; map: string }>>([]);
+  const [leaderboardMatches, setLeaderboardMatches] = useState<
+    Array<{ id: string; match_number: number; name: string; map: string }>
+  >([]);
   const [rules, setRules] = useState<TournamentRule[]>(DEFAULT_RULES);
   const [loading, setLoading] = useState(true);
 
   // Navigation: 'home' | 'leaderboard' | 'groups' | 'matches' | 'finals' | 'teams' | 'team-detail' | 'rules' | 'admin-login' | 'admin' | 'admin-teams' | 'admin-groups' | 'admin-matches' | 'admin-results' | 'admin-finals' | 'admin-settings' | 'admin-rules'
-  const [activeTab, setActiveTabState] = useState<string>('home');
+  const [activeTab, setActiveTabState] = useState<string>(() => {
+    const state = window.history.state;
+
+    if (state?.bgmiShowdown && typeof state.tab === "string") {
+      return state.tab;
+    }
+
+    return "home";
+  });
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
   // Admin session state
   const [adminToken, setAdminToken] = useState<string | null>(() => {
-    return localStorage.getItem('bgmi_admin_token');
+    return localStorage.getItem("bgmi_admin_token");
   });
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  }, []);
+  const showToast = useCallback(
+    (message: string, type: "success" | "error" | "info" = "info") => {
+      setToast({ message, type });
+      setTimeout(() => setToast(null), 4000);
+    },
+    [],
+  );
 
-  const setActiveTab = useCallback((tab: string) => {
-    setActiveTabState(tab);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  const setActiveTab = useCallback(
+    (tab: string) => {
+      if (tab === activeTab) {
+        return;
+      }
 
+      window.history.pushState(
+        {
+          bgmiShowdown: true,
+          tab: tab,
+        },
+        "",
+        window.location.href,
+      );
+
+      setActiveTabState(tab);
+
+      window.scrollTo(0, 0);
+    },
+    [activeTab],
+  );
+  useEffect(() => {
+    // Create the initial history entry for the current page
+    if (!window.history.state?.bgmiShowdown) {
+      window.history.replaceState(
+        {
+          bgmiShowdown: true,
+          tab: activeTab,
+        },
+        "",
+        window.location.href,
+      );
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state;
+
+      if (state?.bgmiShowdown && typeof state.tab === "string") {
+        setActiveTabState(state.tab);
+      } else {
+        setActiveTabState("home");
+      }
+
+      window.scrollTo(0, 0);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
   // Check admin session on mount or token change
   useEffect(() => {
     if (!adminToken) {
@@ -158,16 +254,16 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return;
     }
 
-    fetch('/api/admin/me', {
-      headers: { Authorization: `Bearer ${adminToken}` }
+    fetch("/api/admin/me", {
+      headers: { Authorization: `Bearer ${adminToken}` },
     })
-      .then(res => {
+      .then((res) => {
         if (res.ok) {
           setIsAdmin(true);
         } else {
           setIsAdmin(false);
           setAdminToken(null);
-          localStorage.removeItem('bgmi_admin_token');
+          localStorage.removeItem("bgmi_admin_token");
         }
       })
       .catch(() => {
@@ -177,37 +273,50 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const loginAdmin = (token: string) => {
     setAdminToken(token);
-    localStorage.setItem('bgmi_admin_token', token);
+    localStorage.setItem("bgmi_admin_token", token);
     setIsAdmin(true);
-    showToast('Admin clearance granted. Welcome to Mission Control.', 'success');
+    showToast(
+      "Admin clearance granted. Welcome to Mission Control.",
+      "success",
+    );
   };
 
   const logoutAdmin = async () => {
     try {
       if (adminToken) {
-        await fetch('/api/admin/logout', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${adminToken}` }
+        await fetch("/api/admin/logout", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${adminToken}` },
         });
       }
     } catch {
       // ignore
     }
     setAdminToken(null);
-    localStorage.removeItem('bgmi_admin_token');
+    localStorage.removeItem("bgmi_admin_token");
     setIsAdmin(false);
-    showToast('Logged out of Admin Panel.', 'info');
-    setActiveTab('home');
+    showToast("Logged out of Admin Panel.", "info");
+    setActiveTab("home");
   };
 
   // Fetch Public Tournament Data
   const refreshAll = useCallback(async () => {
     try {
       const [tData, teamsData, mData, rData] = await Promise.all([
-        safeFetchJson<{ settings?: any; stats?: any; nextMatch?: any; recentMatch?: any }>('/api/tournament', undefined, 2, 400),
-        safeFetchJson<{ teams?: Team[] }>('/api/teams', undefined, 2, 400),
-        safeFetchJson<{ matches?: Match[] }>('/api/matches', undefined, 2, 400),
-        safeFetchJson<{ rules?: TournamentRule[] }>('/api/rules', undefined, 2, 400)
+        safeFetchJson<{
+          settings?: any;
+          stats?: any;
+          nextMatch?: any;
+          recentMatch?: any;
+        }>("/api/tournament", undefined, 2, 400),
+        safeFetchJson<{ teams?: Team[] }>("/api/teams", undefined, 2, 400),
+        safeFetchJson<{ matches?: Match[] }>("/api/matches", undefined, 2, 400),
+        safeFetchJson<{ rules?: TournamentRule[] }>(
+          "/api/rules",
+          undefined,
+          2,
+          400,
+        ),
       ]);
 
       if (tData) {
@@ -232,30 +341,38 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, []);
 
-  const fetchLeaderboard = useCallback(async (stage: 'group' | 'finals', groupId?: string) => {
-    try {
-      let url = `/api/leaderboard?stage=${stage}`;
-      if (groupId) url += `&groupId=${groupId}`;
-      const data = await safeFetchJson<{
-        leaderboard: LeaderboardRow[];
-        matches: Array<{ id: string; match_number: number; name: string; map: string }>;
-        qualifiersCount: number;
-      }>(url, undefined, 2, 400);
+  const fetchLeaderboard = useCallback(
+    async (stage: "group" | "finals", groupId?: string) => {
+      try {
+        let url = `/api/leaderboard?stage=${stage}`;
+        if (groupId) url += `&groupId=${groupId}`;
+        const data = await safeFetchJson<{
+          leaderboard: LeaderboardRow[];
+          matches: Array<{
+            id: string;
+            match_number: number;
+            name: string;
+            map: string;
+          }>;
+          qualifiersCount: number;
+        }>(url, undefined, 2, 400);
 
-      if (data?.leaderboard) {
-        setLeaderboard(data.leaderboard);
-        setLeaderboardMatches(data.matches || []);
-        return data;
+        if (data?.leaderboard) {
+          setLeaderboard(data.leaderboard);
+          setLeaderboardMatches(data.matches || []);
+          return data;
+        }
+      } catch {
+        // Gracefully maintain existing leaderboard
       }
-    } catch {
-      // Gracefully maintain existing leaderboard
-    }
-    return { leaderboard: [], matches: [], qualifiersCount: 8 };
-  }, []);
+      return { leaderboard: [], matches: [], qualifiersCount: 8 };
+    },
+    [],
+  );
 
   useEffect(() => {
     refreshAll();
-    fetchLeaderboard('group', groupId(0));
+    fetchLeaderboard("group", groupId(0));
 
     // Polling every 12 seconds for live leaderboard updates without page reload
     const interval = setInterval(() => {
@@ -295,7 +412,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         fetchLeaderboard,
         theme,
         toggleTheme,
-        setTheme
+        setTheme,
       }}
     >
       {children}
@@ -306,7 +423,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 export const useTournament = () => {
   const context = useContext(TournamentContext);
   if (!context) {
-    throw new Error('useTournament must be used within a TournamentProvider');
+    throw new Error("useTournament must be used within a TournamentProvider");
   }
   return context;
 };

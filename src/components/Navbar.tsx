@@ -48,7 +48,7 @@ export const Navbar: React.FC = () => {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-headline text-lg sm:text-2xl md:text-3xl text-zinc-950 dark:text-white tracking-wider group-hover:text-[#FF6FB5] transition-colors truncate">
-                  {settings?.name || 'BGMI SHOWDOWN'}
+                  BGMI SHOWDOWN
                 </span>
                 <span className="hidden sm:inline-block px-2 py-0.5 bg-[#00E5FF] text-black border-2 border-black shadow-[2px_2px_0px_0px_#000] text-[10px] font-headline tracking-widest uppercase font-bold shrink-0">
                   ESPORTS
